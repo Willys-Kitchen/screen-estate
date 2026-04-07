@@ -33,8 +33,6 @@ class HotkeyService {
     ]
 
     private func handleKeyDown(_ event: NSEvent) {
-        guard appState.settings.isEnabled else { return }
-
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         guard modifiers.contains(appState.settings.modifierKey.eventFlags) else { return }
 

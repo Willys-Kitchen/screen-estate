@@ -9,8 +9,29 @@ struct DisplayInfo {
 }
 
 class DisplayService {
+    private var screenChangeObserver: NSObjectProtocol?
+
     static func makeIdentifier(vendor: UInt32, model: UInt32, serial: UInt32) -> String {
         "v\(vendor)-m\(model)-s\(serial)"
+    }
+
+    func startMonitoring(onChange: @escaping () -> Void) {
+        screenChangeObserver = NotificationCenter.default.addObserver(
+            forName: NSApplication.didChangeScreenParametersNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            let displays = NSScreen.screens.map { $0.localizedName }
+            NSLog("Screen Estate: Display configuration changed. Connected: \(displays)")
+            onChange()
+        }
+    }
+
+    func stopMonitoring() {
+        if let observer = screenChangeObserver {
+            NotificationCenter.default.removeObserver(observer)
+            screenChangeObserver = nil
+        }
     }
 
     func connectedDisplays() -> [DisplayInfo] {
