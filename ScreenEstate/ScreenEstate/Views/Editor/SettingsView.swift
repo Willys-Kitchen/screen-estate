@@ -1,0 +1,103 @@
+import SwiftUI
+
+struct SettingsView: View {
+    @Bindable var appState: AppState
+    let onSave: () -> Void
+    @State private var savedSettings: AppSettings? = nil
+
+    private var hasChanges: Bool {
+        guard let saved = savedSettings else { return false }
+        return appState.settings != saved
+    }
+
+    private var accentColorBinding: Binding<Color> {
+        Binding(
+            get: {
+                let rgba = appState.settings.accentColorRGBA
+                return Color(red: rgba.red, green: rgba.green, blue: rgba.blue, opacity: rgba.alpha)
+            },
+            set: { newColor in
+                guard let nsColor = NSColor(newColor).usingColorSpace(.sRGB) else { return }
+                appState.settings.accentColorRGBA = RGBA(
+                    red: Double(nsColor.redComponent),
+                    green: Double(nsColor.greenComponent),
+                    blue: Double(nsColor.blueComponent),
+                    alpha: Double(nsColor.alphaComponent)
+                )
+            }
+        )
+    }
+
+    @ViewBuilder
+    private func modifierToggle(_ label: String, isOn: Bool, flag: NSEvent.ModifierFlags) -> some View {
+        Toggle(label, isOn: Binding(
+            get: { isOn },
+            set: { enabled in
+                var current = appState.settings.modifierKey.eventFlags
+                if enabled {
+                    current.insert(flag)
+                } else {
+                    current.remove(flag)
+                }
+                // Require at least one modifier
+                if !current.isEmpty {
+                    appState.settings.modifierKey = CustomModifierKey(flags: current.rawValue)
+                }
+            }
+        ))
+    }
+
+    var body: some View {
+        Form {
+            Section("Appearance") {
+                ColorPicker("Accent Color", selection: accentColorBinding)
+            }
+
+            Section("Keyboard Shortcut") {
+                modifierToggle("⌃  Control",
+                    isOn: appState.settings.modifierKey.control,
+                    flag: .control)
+                modifierToggle("⌥  Option",
+                    isOn: appState.settings.modifierKey.option,
+                    flag: .option)
+                modifierToggle("⇧  Shift",
+                    isOn: appState.settings.modifierKey.shift,
+                    flag: .shift)
+                modifierToggle("⌘  Command",
+                    isOn: appState.settings.modifierKey.command,
+                    flag: .command)
+                LabeledContent("Shortcut") {
+                    Text("\(appState.settings.modifierKey.displayString) + 1 … 9")
+                        .foregroundColor(.secondary)
+                }
+                Text("At least one modifier must be selected")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+
+            Section("Drag to Snap") {
+                Toggle("Enable Shift + drag to snap", isOn: $appState.settings.isDragSnapEnabled)
+                Text("Hold Shift while dragging a window to snap it to the highlighted zone")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .frame(minWidth: 400)
+        .onAppear { savedSettings = appState.settings }
+        .safeAreaInset(edge: .bottom) {
+            HStack {
+                Spacer()
+                Button("Save Settings") {
+                    onSave()
+                    savedSettings = appState.settings
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!hasChanges)
+                .padding()
+            }
+            .background(.bar)
+        }
+    }
+}
+

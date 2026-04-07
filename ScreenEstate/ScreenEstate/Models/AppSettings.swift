@@ -1,0 +1,88 @@
+import Foundation
+import AppKit
+
+struct RGBA: Codable, Hashable {
+    var red: Double
+    var green: Double
+    var blue: Double
+    var alpha: Double
+
+    static let defaultBlue = RGBA(red: 0.0, green: 0.478, blue: 1.0, alpha: 0.3)
+}
+
+struct CustomModifierKey: Codable, Hashable {
+    var flags: UInt
+
+    init(flags: UInt) {
+        self.flags = flags
+    }
+
+    init(from decoder: Decoder) throws {
+        if let raw = try? decoder.singleValueContainer().decode(UInt.self) {
+            self.flags = raw
+        } else if let legacy = try? decoder.singleValueContainer().decode(String.self) {
+            self = CustomModifierKey.fromLegacy(legacy)
+        } else {
+            // Handle old keyed format with triggerKeyCode fields — just read flags
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            self.flags = (try? c.decode(UInt.self, forKey: .flags)) ?? CustomModifierKey.controlOption.flags
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey { case flags }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.singleValueContainer()
+        try c.encode(flags)
+    }
+
+    var eventFlags: NSEvent.ModifierFlags {
+        NSEvent.ModifierFlags(rawValue: flags).intersection(.deviceIndependentFlagsMask)
+    }
+
+    var control: Bool { eventFlags.contains(.control) }
+    var option:  Bool { eventFlags.contains(.option) }
+    var shift:   Bool { eventFlags.contains(.shift) }
+    var command: Bool { eventFlags.contains(.command) }
+
+    var displayString: String {
+        var parts: [String] = []
+        if control { parts.append("⌃") }
+        if option  { parts.append("⌥") }
+        if shift   { parts.append("⇧") }
+        if command { parts.append("⌘") }
+        return parts.isEmpty ? "—" : parts.joined()
+    }
+
+    static let controlOption = CustomModifierKey(
+        flags: NSEvent.ModifierFlags([.control, .option]).rawValue
+    )
+
+    private static func fromLegacy(_ string: String) -> CustomModifierKey {
+        switch string {
+        case "control":        return .init(flags: NSEvent.ModifierFlags.control.rawValue)
+        case "option":         return .init(flags: NSEvent.ModifierFlags.option.rawValue)
+        case "command":        return .init(flags: NSEvent.ModifierFlags.command.rawValue)
+        case "controlOption":  return .init(flags: NSEvent.ModifierFlags([.control, .option]).rawValue)
+        case "controlCommand": return .init(flags: NSEvent.ModifierFlags([.control, .command]).rawValue)
+        case "optionCommand":  return .init(flags: NSEvent.ModifierFlags([.option, .command]).rawValue)
+        default:               return .controlOption
+        }
+    }
+}
+
+struct AppSettings: Codable, Equatable {
+    var accentColorRGBA: RGBA
+    var modifierKey: CustomModifierKey
+    var launchAtLogin: Bool
+    var isEnabled: Bool
+    var isDragSnapEnabled: Bool
+
+    static let defaultSettings = AppSettings(
+        accentColorRGBA: .defaultBlue,
+        modifierKey: .controlOption,
+        launchAtLogin: false,
+        isEnabled: true,
+        isDragSnapEnabled: true
+    )
+}
