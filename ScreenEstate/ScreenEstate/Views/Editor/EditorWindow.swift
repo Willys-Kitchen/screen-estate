@@ -3,7 +3,6 @@ import SwiftUI
 struct EditorWindow: View {
     @Bindable var appState: AppState
     let displayService: DisplayService
-    let onSave: () -> Void
 
     @Environment(\.dismiss) private var dismiss
 
@@ -35,7 +34,6 @@ struct EditorWindow: View {
                 if let layoutIndex = appState.modes[appState.activeModeIndex].layouts
                     .firstIndex(where: { $0.displayIdentifier == display.identifier }) {
                     appState.modes[appState.activeModeIndex].layouts[layoutIndex].zones = newZones
-                    onSave()
                 }
             }
         )
@@ -87,7 +85,7 @@ struct EditorWindow: View {
             case .grid:
                 GridTab(zones: currentZonesBinding, accentColor: accentColor, aspectRatio: currentDisplayAspectRatio)
             case .settings:
-                SettingsView(appState: appState, onSave: onSave)
+                SettingsView(appState: appState)
             }
 
             Divider()
@@ -109,7 +107,6 @@ struct EditorWindow: View {
             HStack {
                 Spacer()
                 Button("Done") {
-                    onSave()
                     NSApp.keyWindow?.close()
                 }
                 .keyboardShortcut(.return, modifiers: [])

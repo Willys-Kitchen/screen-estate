@@ -1,14 +1,8 @@
 import SwiftUI
+import ServiceManagement
 
 struct SettingsView: View {
     @Bindable var appState: AppState
-    let onSave: () -> Void
-    @State private var savedSettings: AppSettings? = nil
-
-    private var hasChanges: Bool {
-        guard let saved = savedSettings else { return false }
-        return appState.settings != saved
-    }
 
     private var accentColorBinding: Binding<Color> {
         Binding(
@@ -49,6 +43,21 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            Section("General") {
+                Toggle("Launch at Login", isOn: $appState.settings.launchAtLogin)
+                    .onChange(of: appState.settings.launchAtLogin) { _, enabled in
+                        do {
+                            if enabled {
+                                try SMAppService.mainApp.register()
+                            } else {
+                                try SMAppService.mainApp.unregister()
+                            }
+                        } catch {
+                            NSLog("Screen Estate: Failed to update login item: \(error)")
+                        }
+                    }
+            }
+
             Section("Appearance") {
                 ColorPicker("Accent Color", selection: accentColorBinding)
             }
@@ -84,20 +93,5 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(minWidth: 400)
-        .onAppear { savedSettings = appState.settings }
-        .safeAreaInset(edge: .bottom) {
-            HStack {
-                Spacer()
-                Button("Save Settings") {
-                    onSave()
-                    savedSettings = appState.settings
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!hasChanges)
-                .padding()
-            }
-            .background(.bar)
-        }
     }
 }
-
