@@ -17,9 +17,11 @@ class SnappingEngine {
     private var cachedWindow: AXUIElement? // Captured when Shift is pressed
 
     private var monitors: [Any] = []
+    var onSnapFailed: (() -> Void)?
 
-    init(appState: AppState) {
+    init(appState: AppState, onSnapFailed: (() -> Void)? = nil) {
         self.appState = appState
+        self.onSnapFailed = onSnapFailed
     }
 
     func start() {
@@ -58,7 +60,7 @@ class SnappingEngine {
     }
 
     private func handleMouseDragged(_ event: NSEvent) {
-        guard appState.settings.isEnabled, appState.settings.isDragSnapEnabled else { return }
+        guard appState.settings.isDragSnapEnabled else { return }
         guard event.modifierFlags.contains(.shift) else {
             if case .tracking = state {
                 cancelTracking()
@@ -167,7 +169,9 @@ class SnappingEngine {
                 let primaryHeight = NSScreen.screens.first?.frame.height ?? display.frame.height
                 let axFrame = CoordinateConverter.toAccessibility(absoluteFrame, primaryScreenHeight: primaryHeight)
                 NSLog("Screen Estate: Setting window frame to \(axFrame)")
-                windowService.setWindowFrame(window, frame: axFrame)
+                if !windowService.setWindowFrame(window, frame: axFrame) {
+                    onSnapFailed?()
+                }
                 return
             }
         }
@@ -182,10 +186,6 @@ class SnappingEngine {
     }
 
     func snapFocusedWindowToZone(number: Int) {
-        guard appState.settings.isEnabled else {
-            NSLog("Screen Estate: Disabled")
-            return
-        }
         guard let window = windowService.getFocusedWindow() else {
             NSLog("Screen Estate: No focused window")
             return
@@ -215,7 +215,9 @@ class SnappingEngine {
                     let absoluteFrame = zone.absoluteFrame(for: display.visibleFrame)
                     let axFrame = CoordinateConverter.toAccessibility(absoluteFrame, primaryScreenHeight: primaryHeight)
                     NSLog("Screen Estate: Snapping to \(axFrame)")
-                    windowService.setWindowFrame(window, frame: axFrame)
+                    if !windowService.setWindowFrame(window, frame: axFrame) {
+                        onSnapFailed?()
+                    }
 
                     overlayManager.showOverlays(zones: zones, for: [display], activeZoneID: zone.id, accentColor: accentColor)
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in

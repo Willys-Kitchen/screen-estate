@@ -97,15 +97,34 @@ class WindowManipulationService {
     }
 
     /// Move and resize a window to the given frame in Accessibility coordinates (top-left origin).
-    func setWindowFrame(_ window: AXUIElement, frame: CGRect) {
+    /// Returns `true` if both position and size were set successfully.
+    @discardableResult
+    func setWindowFrame(_ window: AXUIElement, frame: CGRect) -> Bool {
+        var success = true
+
         var position = frame.origin
         if let posValue = AXValueCreate(.cgPoint, &position) {
-            AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, posValue)
+            let posResult = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, posValue)
+            if posResult != .success {
+                NSLog("Screen Estate [AX]: Failed to set window position: \(describeAXError(posResult))")
+                success = false
+            }
+        } else {
+            success = false
         }
+
         var size = frame.size
         if let sizeValue = AXValueCreate(.cgSize, &size) {
-            AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeValue)
+            let sizeResult = AXUIElementSetAttributeValue(window, kAXSizeAttribute as CFString, sizeValue)
+            if sizeResult != .success {
+                NSLog("Screen Estate [AX]: Failed to set window size: \(describeAXError(sizeResult))")
+                success = false
+            }
+        } else {
+            success = false
         }
+
+        return success
     }
 
     private func describeAXError(_ error: AXError) -> String {
