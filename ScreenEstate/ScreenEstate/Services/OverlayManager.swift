@@ -3,7 +3,12 @@ import SwiftUI
 
 @MainActor
 class OverlayManager {
-    private var overlayWindows: [String: OverlayWindow] = [:]
+    private struct OverlayEntry {
+        let window: OverlayWindow
+        let state: OverlayState
+    }
+
+    private var overlayEntries: [String: OverlayEntry] = [:]
     private var flashWindow: OverlayWindow?
 
     func showOverlays(zones: [Zone], for displays: [DisplayInfo], activeZoneID: UUID?, accentColor: Color) {
@@ -19,42 +24,46 @@ class OverlayManager {
             }
             guard let screen else { continue }
 
-            let displayZones = zones // caller should pass zones for this display
-            let window: OverlayWindow
-            if let existing = overlayWindows[display.identifier] {
-                window = existing
-            } else {
-                window = OverlayWindow(for: screen)
-                overlayWindows[display.identifier] = window
-            }
+            let displayZones = zones
 
-            let contentView = NSHostingView(rootView: OverlayContentView(
-                zones: displayZones,
-                activeZoneID: activeZoneID,
-                accentColor: accentColor
-            ))
-            window.contentView = contentView
-            window.setFrame(screen.frame, display: true)
-            window.orderFront(nil)
+            if let entry = overlayEntries[display.identifier] {
+                // Reuse existing window — just update state
+                entry.state.zones = displayZones
+                entry.state.activeZoneID = activeZoneID
+                entry.state.accentColor = accentColor
+                entry.window.setFrame(screen.frame, display: true)
+                entry.window.orderFront(nil)
+            } else {
+                // Create new window with hosting view
+                let window = OverlayWindow(for: screen)
+                let state = OverlayState()
+                state.zones = displayZones
+                state.activeZoneID = activeZoneID
+                state.accentColor = accentColor
+
+                let contentView = NSHostingView(rootView: OverlayContentView(state: state))
+                window.contentView = contentView
+                window.setFrame(screen.frame, display: true)
+                window.orderFront(nil)
+
+                overlayEntries[display.identifier] = OverlayEntry(window: window, state: state)
+            }
         }
     }
 
     func updateActiveZone(_ zoneID: UUID?, zones: [Zone], accentColor: Color) {
-        for (_, window) in overlayWindows {
-            let contentView = NSHostingView(rootView: OverlayContentView(
-                zones: zones,
-                activeZoneID: zoneID,
-                accentColor: accentColor
-            ))
-            window.contentView = contentView
+        for (_, entry) in overlayEntries {
+            entry.state.activeZoneID = zoneID
+            entry.state.zones = zones
+            entry.state.accentColor = accentColor
         }
     }
 
     func hideOverlays() {
-        for (_, window) in overlayWindows {
-            window.orderOut(nil)
+        for (_, entry) in overlayEntries {
+            entry.window.orderOut(nil)
         }
-        overlayWindows.removeAll()
+        overlayEntries.removeAll()
     }
 
     func flashModeName(_ name: String, on screen: NSScreen) {

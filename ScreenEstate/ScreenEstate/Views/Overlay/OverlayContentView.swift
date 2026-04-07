@@ -1,22 +1,27 @@
 import SwiftUI
 
+@Observable
+class OverlayState {
+    var zones: [Zone] = []
+    var activeZoneID: UUID?
+    var accentColor: Color = .blue
+}
+
 struct OverlayContentView: View {
-    let zones: [Zone]
-    let activeZoneID: UUID?
-    let accentColor: Color
+    var state: OverlayState
 
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                ForEach(zones) { zone in
-                    let isActive = zone.id == activeZoneID
+                ForEach(state.zones) { zone in
+                    let isActive = zone.id == state.activeZoneID
                     let frame = zone.proportionalFrame
 
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(isActive ? accentColor.opacity(0.3) : Color.gray.opacity(0.15))
+                        .fill(isActive ? state.accentColor.opacity(0.3) : Color.gray.opacity(0.15))
                         .overlay(
                             RoundedRectangle(cornerRadius: 8)
-                                .stroke(isActive ? accentColor : Color.gray.opacity(0.4), lineWidth: isActive ? 3 : 1)
+                                .stroke(isActive ? state.accentColor : Color.gray.opacity(0.4), lineWidth: isActive ? 3 : 1)
                         )
                         .overlay(
                             Text(zone.number > 0 ? "\(zone.number)" : "")
