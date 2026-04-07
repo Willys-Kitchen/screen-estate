@@ -39,7 +39,8 @@ final class AppSettingsTests: XCTestCase {
             accentColorRGBA: RGBA(red: 0.2, green: 0.5, blue: 0.8, alpha: 0.3),
             modifierKey: .controlOption,
             launchAtLogin: false,
-            isEnabled: true
+            isEnabled: true,
+            isDragSnapEnabled: true
         )
         let data = try JSONEncoder().encode(settings)
         let decoded = try JSONDecoder().decode(AppSettings.self, from: data)
@@ -58,17 +59,25 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(settings.modifierKey, .controlOption)
     }
 
-    func testAllModifierKeyOptionsAreCodable() throws {
-        for option in ModifierKeyOption.allCases {
+    func testVariousModifierKeysAreCodable() throws {
+        let keys: [CustomModifierKey] = [
+            .controlOption,
+            CustomModifierKey(flags: NSEvent.ModifierFlags.control.rawValue),
+            CustomModifierKey(flags: NSEvent.ModifierFlags.option.rawValue),
+            CustomModifierKey(flags: NSEvent.ModifierFlags.command.rawValue),
+            CustomModifierKey(flags: NSEvent.ModifierFlags([.control, .option, .command]).rawValue),
+        ]
+        for key in keys {
             let settings = AppSettings(
                 accentColorRGBA: .defaultBlue,
-                modifierKey: option,
+                modifierKey: key,
                 launchAtLogin: false,
-                isEnabled: true
+                isEnabled: true,
+                isDragSnapEnabled: true
             )
             let data = try JSONEncoder().encode(settings)
             let decoded = try JSONDecoder().decode(AppSettings.self, from: data)
-            XCTAssertEqual(decoded.modifierKey, option)
+            XCTAssertEqual(decoded.modifierKey, key)
         }
     }
 }

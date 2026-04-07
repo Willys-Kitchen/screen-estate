@@ -51,15 +51,17 @@ final class PersistenceServiceTests: XCTestCase {
     }
 
     func testSaveAndLoadSettings() throws {
+        let commandKey = CustomModifierKey(flags: NSEvent.ModifierFlags.command.rawValue)
         let settings = AppSettings(
             accentColorRGBA: RGBA(red: 1, green: 0, blue: 0, alpha: 1),
-            modifierKey: .command,
+            modifierKey: commandKey,
             launchAtLogin: true,
-            isEnabled: false
+            isEnabled: false,
+            isDragSnapEnabled: true
         )
         try service.save(settings, to: "settings.json")
         let loaded: AppSettings = try service.load(from: "settings.json")
-        XCTAssertEqual(loaded.modifierKey, .command)
+        XCTAssertEqual(loaded.modifierKey, commandKey)
         XCTAssertTrue(loaded.launchAtLogin)
         XCTAssertFalse(loaded.isEnabled)
     }
