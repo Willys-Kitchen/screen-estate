@@ -62,6 +62,7 @@ final class ZoneTests: XCTestCase {
         )
         let screen = CGRect(x: 0, y: 0, width: 2000, height: 1000)
         let absolute = zone.absoluteFrame(for: screen)
-        XCTAssertEqual(absolute, CGRect(x: 1000, y: 500, width: 1000, height: 500))
+        // proportional y=0.5, height=0.5 → NSScreen y = (1 - 0.5 - 0.5) * 1000 = 0
+        XCTAssertEqual(absolute, CGRect(x: 1000, y: 0, width: 1000, height: 500))
     }
 }

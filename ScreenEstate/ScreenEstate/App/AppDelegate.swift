@@ -9,7 +9,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var lastAccessibilityAlertDate: Date?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        if !WindowManipulationService.checkAccessibility(prompt: true) {
+        if !WindowManipulationService.checkAccessibility(prompt: false) {
             NSLog("Screen Estate: Accessibility permission not granted.")
             showAccessibilityAlert()
         }

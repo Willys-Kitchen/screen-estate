@@ -6,6 +6,7 @@ struct GridTab: View {
     var aspectRatio: CGFloat = 16.0 / 9.0
 
     @State private var grid: GridEditor
+    @State private var history: [GridEditor] = []
     @State private var selectionStart: (row: Int, col: Int)?
     @State private var selectionEnd: (row: Int, col: Int)?
     @State private var mergeErrorMessage: String?
@@ -18,108 +19,118 @@ struct GridTab: View {
         self._grid = State(initialValue: GridEditor(rows: rows, columns: columns))
     }
 
-    // MARK: - Selection state
+    // MARK: - Selection
 
     private var selectedRange: (minRow: Int, maxRow: Int, minCol: Int, maxCol: Int)? {
         guard let start = selectionStart, let end = selectionEnd else { return nil }
-        return (
-            min(start.row, end.row),
-            max(start.row, end.row),
-            min(start.col, end.col),
-            max(start.col, end.col)
-        )
+        // Expand to cover full group bounding boxes for both endpoints
+        let startGroup = grid.cells[start.row][start.col]
+        let endGroup = grid.cells[end.row][end.col]
+        let sb = bounds(ofGroup: startGroup)
+        let eb = bounds(ofGroup: endGroup)
+        return (min(sb.minRow, eb.minRow), max(sb.maxRow, eb.maxRow),
+                min(sb.minCol, eb.minCol), max(sb.maxCol, eb.maxCol))
     }
 
-    /// Whether the current rectangular selection would cut across an existing merged zone.
     private var selectionIsInvalid: Bool {
-        guard let range = selectedRange else { return false }
-        return !grid.wouldMergeSucceed(
-            fromRow: range.minRow, fromCol: range.minCol,
-            toRow: range.maxRow, toCol: range.maxCol
-        )
+        guard let r = selectedRange else { return false }
+        return !grid.wouldMergeSucceed(fromRow: r.minRow, fromCol: r.minCol,
+                                       toRow: r.maxRow, toCol: r.maxCol)
     }
 
-    private func cellState(row: Int, col: Int) -> GridCellState {
-        // If both endpoints are set, show rectangular selection
-        if let range = selectedRange {
-            let inRect = row >= range.minRow && row <= range.maxRow
-                && col >= range.minCol && col <= range.maxCol
-            if inRect {
-                return selectionIsInvalid ? .mergeError : .inSelection
-            }
-            return .idle
-        }
-        // If only start is set, highlight that single cell
-        if let start = selectionStart, start.row == row, start.col == col {
-            return .selectionStart
-        }
-        return .idle
-    }
+    // MARK: - Zone helpers
 
-    private func zoneNumberForCell(row: Int, col: Int) -> Int {
-        let groupID = grid.cells[row][col]
-        var seenGroups = Set<Int>()
-        var orderedGroups: [Int] = []
+    private var orderedGroups: [Int] {
+        var seen = Set<Int>()
+        var result: [Int] = []
         for r in 0..<grid.rows {
             for c in 0..<grid.columns {
                 let g = grid.cells[r][c]
-                if !seenGroups.contains(g) {
-                    seenGroups.insert(g)
-                    orderedGroups.append(g)
+                if seen.insert(g).inserted { result.append(g) }
+            }
+        }
+        return result
+    }
+
+    private func zoneNumber(forGroup groupID: Int) -> Int {
+        guard let idx = orderedGroups.firstIndex(of: groupID) else { return 0 }
+        return idx < 9 ? idx + 1 : 0
+    }
+
+    private func bounds(ofGroup groupID: Int) -> (minRow: Int, maxRow: Int, minCol: Int, maxCol: Int) {
+        var minR = grid.rows, maxR = 0, minC = grid.columns, maxC = 0
+        for r in 0..<grid.rows {
+            for c in 0..<grid.columns {
+                if grid.cells[r][c] == groupID {
+                    minR = min(minR, r); maxR = max(maxR, r)
+                    minC = min(minC, c); maxC = max(maxC, c)
                 }
             }
         }
-        guard let index = orderedGroups.firstIndex(of: groupID) else { return 0 }
-        return index < 9 ? index + 1 : 0
+        return (minR, maxR, minC, maxC)
     }
 
     // MARK: - Actions
 
-    private func handleTap(row: Int, col: Int) {
+    private func pushHistory() {
+        history.append(grid)
+    }
+
+    private func handleTap(row: Int, col: Int, isCtrlClick: Bool = false) {
         mergeErrorMessage = nil
+
+        if isCtrlClick {
+            // Ctrl+click: split vertically (horizontal line)
+            let groupID = grid.cells[row][col]
+            pushHistory()
+            grid.splitVertically(groupID: groupID)
+            zones = grid.toZones()
+            clearSelection()
+            return
+        }
+
         if selectionStart == nil {
-            // Start a new selection
             selectionStart = (row, col)
             selectionEnd = nil
         } else if selectionEnd == nil {
             let start = selectionStart!
             if start.row == row && start.col == col {
-                // Tapped same cell — split if merged, otherwise deselect
-                let groupID = grid.cells[row][col]
-                if grid.isGroupMerged(groupID: groupID) {
-                    grid.split(groupID: groupID)
-                    zones = grid.toZones()
-                }
+                // Tapped same cell with no modifier — deselect
                 selectionStart = nil
             } else {
                 selectionEnd = (row, col)
             }
         } else {
-            // Already have a full selection — start fresh
+            // Start fresh selection
             selectionStart = (row, col)
             selectionEnd = nil
         }
     }
 
+    private func handleDoubleTap(row: Int, col: Int) {
+        // Double-click: split horizontally (vertical line)
+        let groupID = grid.cells[row][col]
+        pushHistory()
+        grid.splitHorizontally(groupID: groupID)
+        zones = grid.toZones()
+        clearSelection()
+    }
+
     private func performMerge() {
-        guard let range = selectedRange else { return }
-        let success = grid.merge(
-            fromRow: range.minRow, fromCol: range.minCol,
-            toRow: range.maxRow, toCol: range.maxCol
-        )
+        guard let r = selectedRange else { return }
+        pushHistory()
+        let success = grid.merge(fromRow: r.minRow, fromCol: r.minCol,
+                                 toRow: r.maxRow, toCol: r.maxCol)
         if success {
             zones = grid.toZones()
-            selectionStart = nil
-            selectionEnd = nil
-            mergeErrorMessage = nil
+            clearSelection()
         } else {
-            mergeErrorMessage = "Can't merge: selection cuts across an existing merged zone."
+            history.removeLast()
+            mergeErrorMessage = "Selection cuts across an existing merged zone."
             withAnimation(.easeInOut(duration: 0.08).repeatCount(3, autoreverses: true)) {
                 mergeErrorFlash = true
             }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                mergeErrorFlash = false
-            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { mergeErrorFlash = false }
         }
     }
 
@@ -129,11 +140,18 @@ struct GridTab: View {
         mergeErrorMessage = nil
     }
 
+    private func undo() {
+        guard !history.isEmpty else { return }
+        grid = history.removeLast()
+        zones = grid.toZones()
+        clearSelection()
+    }
+
     // MARK: - Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            // Header row
+            // Dimension controls
             HStack(spacing: 20) {
                 Text("Custom grid layout")
                     .font(.headline)
@@ -141,59 +159,34 @@ struct GridTab: View {
                 HStack(spacing: 12) {
                     dimensionStepper(label: "Rows", value: Binding(
                         get: { grid.rows },
-                        set: { newValue in
-                            let clamped = max(1, min(6, newValue))
-                            grid = GridEditor(rows: clamped, columns: grid.columns)
-                            clearSelection()
-                            zones = grid.toZones()
+                        set: { v in
+                            pushHistory()
+                            grid = GridEditor(rows: max(1, min(6, v)), columns: grid.columns)
+                            clearSelection(); zones = grid.toZones()
                         }
                     ))
                     dimensionStepper(label: "Columns", value: Binding(
                         get: { grid.columns },
-                        set: { newValue in
-                            let clamped = max(1, min(6, newValue))
-                            grid = GridEditor(rows: grid.rows, columns: clamped)
-                            clearSelection()
-                            zones = grid.toZones()
+                        set: { v in
+                            pushHistory()
+                            grid = GridEditor(rows: grid.rows, columns: max(1, min(6, v)))
+                            clearSelection(); zones = grid.toZones()
                         }
                     ))
                 }
             }
 
             // Grid
-            VStack(spacing: 2) {
-                ForEach(0..<grid.rows, id: \.self) { row in
-                    HStack(spacing: 2) {
-                        ForEach(0..<grid.columns, id: \.self) { col in
-                            GridCell(
-                                row: row,
-                                col: col,
-                                groupID: grid.cells[row][col],
-                                cellState: cellState(row: row, col: col),
-                                zoneNumber: zoneNumberForCell(row: row, col: col)
-                            )
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                handleTap(row: row, col: col)
-                            }
-                        }
-                    }
-                }
-            }
-            .aspectRatio(aspectRatio, contentMode: .fit)
+            gridEditorView
 
-            // Error message
+            // Error banner
             if let errorMsg = mergeErrorMessage {
                 HStack(spacing: 6) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.red)
-                        .font(.caption)
-                    Text(errorMsg)
-                        .font(.caption)
-                        .foregroundColor(.red)
+                        .foregroundColor(.red).font(.caption)
+                    Text(errorMsg).font(.caption).foregroundColor(.red)
                 }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
+                .padding(.horizontal, 10).padding(.vertical, 6)
                 .background(Color.red.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 .transition(.opacity.combined(with: .move(edge: .top)))
@@ -201,83 +194,188 @@ struct GridTab: View {
 
             // Action bar
             HStack(spacing: 8) {
-                // Merge button — primary CTA when a selection is active
                 Button(action: performMerge) {
                     Label("Merge Cells", systemImage: "square.grid.2x2")
                         .font(.system(size: 12, weight: .semibold))
                 }
-                .buttonStyle(MergeButtonStyle(
-                    isActive: selectedRange != nil,
-                    isError: selectionIsInvalid,
-                    flash: mergeErrorFlash
-                ))
+                .buttonStyle(MergeButtonStyle(isActive: selectedRange != nil,
+                                              isError: selectionIsInvalid,
+                                              flash: mergeErrorFlash))
                 .disabled(selectedRange == nil)
 
                 if selectionStart != nil {
-                    Button("Cancel") {
-                        clearSelection()
-                    }
-                    .buttonStyle(.plain)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    Button("Cancel") { clearSelection() }
+                        .buttonStyle(.plain).font(.caption).foregroundColor(.secondary)
                 }
 
                 Spacer()
 
-                Button("Reset Grid") {
-                    grid = GridEditor(rows: grid.rows, columns: grid.columns)
-                    clearSelection()
-                    zones = grid.toZones()
+                Button(action: undo) {
+                    Label("Revert", systemImage: "arrow.uturn.backward").font(.caption)
                 }
                 .buttonStyle(.plain)
-                .font(.caption)
-                .foregroundColor(.secondary)
+                .foregroundColor(history.isEmpty ? Color.secondary.opacity(0.4) : .secondary)
+                .disabled(history.isEmpty)
+
+                Button("Reset Grid") {
+                    pushHistory()
+                    grid = GridEditor(rows: grid.rows, columns: grid.columns)
+                    clearSelection(); zones = grid.toZones()
+                }
+                .buttonStyle(.plain).font(.caption).foregroundColor(.secondary)
             }
 
-            // Instruction hint
             selectionHint
         }
         .padding()
         .animation(.easeInOut(duration: 0.18), value: mergeErrorMessage != nil)
         .animation(.easeInOut(duration: 0.12), value: selectionStart != nil)
         .onAppear {
-            zones = grid.toZones()
+            // Only initialize zones from the grid if no zones exist yet.
+            // All grid mutations (merge, split, undo, reset, dimension changes)
+            // already sync zones via grid.toZones(), so this is only needed as
+            // a fallback for an empty initial state.
+            if zones.isEmpty {
+                zones = grid.toZones()
+            }
         }
     }
 
-    // MARK: - Subviews
+    // MARK: - Grid editor
+
+    private var gridEditorView: some View {
+        GeometryReader { geo in
+            let W = geo.size.width
+            let H = geo.size.height
+            let cellW = W / CGFloat(grid.columns)
+            let cellH = H / CGFloat(grid.rows)
+            let gap: CGFloat = 3
+
+            ZStack(alignment: .topLeading) {
+
+                // 1. Zone group fill + border (non-interactive)
+                ForEach(orderedGroups, id: \.self) { groupID in
+                    let b = bounds(ofGroup: groupID)
+                    let x = CGFloat(b.minCol) * cellW + gap / 2
+                    let y = CGFloat(b.minRow) * cellH + gap / 2
+                    let w = CGFloat(b.maxCol - b.minCol + 1) * cellW - gap
+                    let h = CGFloat(b.maxRow - b.minRow + 1) * cellH - gap
+                    let num = zoneNumber(forGroup: groupID)
+
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(Color.gray.opacity(0.12))
+                        .overlay(RoundedRectangle(cornerRadius: 5)
+                            .stroke(Color.gray.opacity(0.4), lineWidth: 1))
+                        .overlay(
+                            Text(num > 0 ? "\(num)" : "")
+                                .font(.system(size: min(w, h) * 0.28, weight: .semibold))
+                                .foregroundColor(.secondary)
+                        )
+                        .frame(width: w, height: h)
+                        .position(x: x + w / 2, y: y + h / 2)
+                        .allowsHitTesting(false)
+                }
+
+                // 2. Selection rectangle overlay (non-interactive)
+                if let r = selectedRange {
+                    let x = CGFloat(r.minCol) * cellW + gap / 2
+                    let y = CGFloat(r.minRow) * cellH + gap / 2
+                    let w = CGFloat(r.maxCol - r.minCol + 1) * cellW - gap
+                    let h = CGFloat(r.maxRow - r.minRow + 1) * cellH - gap
+
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(selectionIsInvalid ? Color.red.opacity(0.15) : accentColor.opacity(0.2))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5)
+                                .stroke(selectionIsInvalid ? Color.red.opacity(0.8) : accentColor,
+                                        style: StrokeStyle(lineWidth: 2, dash: [5, 3]))
+                        )
+                        .frame(width: w, height: h)
+                        .position(x: x + w / 2, y: y + h / 2)
+                        .allowsHitTesting(false)
+                }
+
+                // 3. First-click anchor indicator — spans the whole group (non-interactive)
+                if selectedRange == nil, let s = selectionStart {
+                    let groupID = grid.cells[s.row][s.col]
+                    let b = bounds(ofGroup: groupID)
+                    let x = CGFloat(b.minCol) * cellW + gap / 2
+                    let y = CGFloat(b.minRow) * cellH + gap / 2
+                    let w = CGFloat(b.maxCol - b.minCol + 1) * cellW - gap
+                    let h = CGFloat(b.maxRow - b.minRow + 1) * cellH - gap
+
+                    RoundedRectangle(cornerRadius: 5)
+                        .fill(accentColor.opacity(0.15))
+                        .overlay(RoundedRectangle(cornerRadius: 5)
+                            .stroke(accentColor, lineWidth: 2))
+                        .frame(width: w, height: h)
+                        .position(x: x + w / 2, y: y + h / 2)
+                        .allowsHitTesting(false)
+                }
+
+                // 4. Tap target grid — topmost, handles all interactions
+                ForEach(0..<grid.rows, id: \.self) { row in
+                    ForEach(0..<grid.columns, id: \.self) { col in
+                        let x = CGFloat(col) * cellW
+                        let y = CGFloat(row) * cellH
+
+                        Color.clear
+                            .frame(width: cellW, height: cellH)
+                            .contentShape(Rectangle())
+                            .position(x: x + cellW / 2, y: y + cellH / 2)
+                            .gesture(
+                                TapGesture(count: 2).onEnded {
+                                    handleDoubleTap(row: row, col: col)
+                                }
+                            )
+                            .simultaneousGesture(
+                                TapGesture(count: 1).modifiers(.control).onEnded {
+                                    handleTap(row: row, col: col, isCtrlClick: true)
+                                }
+                            )
+                            .simultaneousGesture(
+                                TapGesture(count: 1).onEnded {
+                                    handleTap(row: row, col: col)
+                                }
+                            )
+                    }
+                }
+            }
+        }
+        .aspectRatio(aspectRatio, contentMode: .fit)
+        .background(Color.black.opacity(0.04))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.gray.opacity(0.2), lineWidth: 1))
+    }
+
+    // MARK: - Hint
 
     private var hintInfo: (text: String, icon: String, color: Color) {
         if selectionStart == nil {
-            return ("Tap a cell to begin selection", "hand.tap", .secondary)
+            return ("Click to select · Double-click splits left/right · ⌃-click splits top/bottom", "hand.tap", .secondary)
         } else if selectionEnd == nil {
-            return ("Tap a second cell to complete selection, or tap same cell to split", "arrow.right.to.line", accentColor)
+            return ("Click a second cell to complete selection", "arrow.right.to.line", accentColor)
         } else if selectionIsInvalid {
-            return ("Selection cuts across an existing merged zone — adjust your selection", "xmark.circle", .red)
+            return ("Selection cuts across an existing merged zone — adjust selection", "xmark.circle", .red)
         } else {
-            let range = selectedRange!
-            let cellCount = (range.maxRow - range.minRow + 1) * (range.maxCol - range.minCol + 1)
-            return ("\(cellCount) cells selected — press Merge Cells to combine", "checkmark.circle", accentColor)
+            let r = selectedRange!
+            let count = (r.maxRow - r.minRow + 1) * (r.maxCol - r.minCol + 1)
+            return ("\(count) cells selected — press Merge Cells to combine", "checkmark.circle", accentColor)
         }
     }
 
     private var selectionHint: some View {
         let info = hintInfo
         return HStack(spacing: 6) {
-            Image(systemName: info.icon)
-                .font(.caption)
-                .foregroundColor(info.color)
-            Text(info.text)
-                .font(.caption)
-                .foregroundColor(info.color)
+            Image(systemName: info.icon).font(.caption).foregroundColor(info.color)
+            Text(info.text).font(.caption).foregroundColor(info.color)
         }
     }
 
     @ViewBuilder
     private func dimensionStepper(label: String, value: Binding<Int>) -> some View {
         HStack(spacing: 4) {
-            Text("\(label):")
-                .font(.subheadline)
+            Text("\(label):").font(.subheadline)
             Stepper("\(value.wrappedValue)", value: value, in: 1...6)
         }
     }
@@ -292,15 +390,11 @@ struct MergeButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 12).padding(.vertical, 6)
             .background(background(pressed: configuration.isPressed))
             .foregroundColor(foreground)
             .clipShape(RoundedRectangle(cornerRadius: 6))
-            .overlay(
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(borderColor, lineWidth: 1)
-            )
+            .overlay(RoundedRectangle(cornerRadius: 6).stroke(borderColor, lineWidth: 1))
             .opacity(isActive ? 1 : 0.45)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(.easeInOut(duration: 0.08), value: configuration.isPressed)

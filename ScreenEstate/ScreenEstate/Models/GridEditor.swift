@@ -108,6 +108,50 @@ struct GridEditor {
         return true
     }
 
+    /// Split a merged zone into left/right halves (vertical split — adds a vertical line).
+    /// Each column within the zone gets its own group per row-band.
+    /// If the zone is only 1 column wide, falls back to full split.
+    mutating func splitHorizontally(groupID: Int) {
+        let b = groupBounds(groupID: groupID)
+        guard let b = b else { return }
+        if b.maxCol == b.minCol {
+            // 1 column wide — just split into individual cells
+            split(groupID: groupID)
+            return
+        }
+        let midCol = (b.minCol + b.maxCol) / 2
+        let leftID = nextGroupID; nextGroupID += 1
+        let rightID = nextGroupID; nextGroupID += 1
+        for r in b.minRow...b.maxRow {
+            for c in b.minCol...b.maxCol {
+                if cells[r][c] == groupID {
+                    cells[r][c] = c <= midCol ? leftID : rightID
+                }
+            }
+        }
+    }
+
+    /// Split a merged zone into top/bottom halves (horizontal split — adds a horizontal line).
+    /// If the zone is only 1 row tall, falls back to full split.
+    mutating func splitVertically(groupID: Int) {
+        let b = groupBounds(groupID: groupID)
+        guard let b = b else { return }
+        if b.maxRow == b.minRow {
+            split(groupID: groupID)
+            return
+        }
+        let midRow = (b.minRow + b.maxRow) / 2
+        let topID = nextGroupID; nextGroupID += 1
+        let bottomID = nextGroupID; nextGroupID += 1
+        for r in b.minRow...b.maxRow {
+            for c in b.minCol...b.maxCol {
+                if cells[r][c] == groupID {
+                    cells[r][c] = r <= midRow ? topID : bottomID
+                }
+            }
+        }
+    }
+
     /// Split a merged zone back into individual cells.
     mutating func split(groupID: Int) {
         for r in 0..<rows {
@@ -118,6 +162,20 @@ struct GridEditor {
                 }
             }
         }
+    }
+
+    func groupBounds(groupID: Int) -> (minRow: Int, maxRow: Int, minCol: Int, maxCol: Int)? {
+        var minR = rows, maxR = -1, minC = columns, maxC = -1
+        for r in 0..<rows {
+            for c in 0..<columns {
+                if cells[r][c] == groupID {
+                    minR = min(minR, r); maxR = max(maxR, r)
+                    minC = min(minC, c); maxC = max(maxC, c)
+                }
+            }
+        }
+        guard maxR >= 0 else { return nil }
+        return (minR, maxR, minC, maxC)
     }
 
     /// Convert the current grid state into an array of Zones with proportional frames.

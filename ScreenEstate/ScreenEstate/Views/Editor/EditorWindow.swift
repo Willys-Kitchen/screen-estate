@@ -90,18 +90,6 @@ struct EditorWindow: View {
 
             Divider()
 
-            // Zone preview
-            if selectedTab != .settings {
-                VStack(alignment: .leading) {
-                    Text("Preview")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    ZonePreview(zones: currentZonesBinding.wrappedValue, accentColor: accentColor, aspectRatio: currentDisplayAspectRatio)
-                        .frame(height: 120)
-                }
-                .padding()
-            }
-
             Divider()
 
             HStack {

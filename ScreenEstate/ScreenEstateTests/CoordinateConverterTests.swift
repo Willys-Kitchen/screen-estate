@@ -78,18 +78,24 @@ final class ZoneHitTestTests: XCTestCase {
 
     func testHitTestWithQuadrants() {
         let zones = MonitorLayout.presetsQuadrants()
+        // absoluteFrame converts to NSScreen coordinates (y=0 at bottom),
+        // so test points must also use y=0 at bottom.
         let screen = CGRect(x: 0, y: 0, width: 2000, height: 1000)
 
-        let topLeft = ZoneHitTester.hitTest(point: CGPoint(x: 400, y: 200), zones: zones, screenFrame: screen)
+        // Zone 1: proportional top-left (y=0) → NSScreen y=500..1000 (top in bottom-up coords)
+        let topLeft = ZoneHitTester.hitTest(point: CGPoint(x: 400, y: 800), zones: zones, screenFrame: screen)
         XCTAssertEqual(topLeft?.number, 1)
 
-        let topRight = ZoneHitTester.hitTest(point: CGPoint(x: 1200, y: 200), zones: zones, screenFrame: screen)
+        // Zone 2: proportional top-right → NSScreen y=500..1000
+        let topRight = ZoneHitTester.hitTest(point: CGPoint(x: 1200, y: 800), zones: zones, screenFrame: screen)
         XCTAssertEqual(topRight?.number, 2)
 
-        let bottomLeft = ZoneHitTester.hitTest(point: CGPoint(x: 400, y: 700), zones: zones, screenFrame: screen)
+        // Zone 3: proportional bottom-left (y=0.5) → NSScreen y=0..500
+        let bottomLeft = ZoneHitTester.hitTest(point: CGPoint(x: 400, y: 200), zones: zones, screenFrame: screen)
         XCTAssertEqual(bottomLeft?.number, 3)
 
-        let bottomRight = ZoneHitTester.hitTest(point: CGPoint(x: 1200, y: 700), zones: zones, screenFrame: screen)
+        // Zone 4: proportional bottom-right → NSScreen y=0..500
+        let bottomRight = ZoneHitTester.hitTest(point: CGPoint(x: 1200, y: 200), zones: zones, screenFrame: screen)
         XCTAssertEqual(bottomRight?.number, 4)
     }
 
