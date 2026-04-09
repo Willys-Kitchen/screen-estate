@@ -20,6 +20,49 @@ struct GridEditor {
         self.nextGroupID = id
     }
 
+    /// Returns true if the group occupies more than one cell (i.e. is merged).
+    func isGroupMerged(groupID: Int) -> Bool {
+        var count = 0
+        for r in 0..<rows {
+            for c in 0..<columns {
+                if cells[r][c] == groupID { count += 1 }
+            }
+        }
+        return count > 1
+    }
+
+    /// Returns true if merge would succeed without modifying state.
+    func wouldMergeSucceed(fromRow: Int, fromCol: Int, toRow: Int, toCol: Int) -> Bool {
+        let minRow = min(fromRow, toRow)
+        let maxRow = max(fromRow, toRow)
+        let minCol = min(fromCol, toCol)
+        let maxCol = max(fromCol, toCol)
+
+        guard minRow >= 0, maxRow < rows, minCol >= 0, maxCol < columns else {
+            return false
+        }
+        if minRow == maxRow && minCol == maxCol { return true }
+
+        var groupIDsInSelection = Set<Int>()
+        for r in minRow...maxRow {
+            for c in minCol...maxCol {
+                groupIDsInSelection.insert(cells[r][c])
+            }
+        }
+        for groupID in groupIDsInSelection {
+            for r in 0..<rows {
+                for c in 0..<columns {
+                    if cells[r][c] == groupID {
+                        if r < minRow || r > maxRow || c < minCol || c > maxCol {
+                            return false
+                        }
+                    }
+                }
+            }
+        }
+        return true
+    }
+
     /// Merge all cells in the rectangle defined by (fromRow, fromCol) to (toRow, toCol).
     /// Returns false if out of bounds or if the selection would cut across an existing merged zone.
     mutating func merge(fromRow: Int, fromCol: Int, toRow: Int, toCol: Int) -> Bool {
