@@ -87,16 +87,20 @@ struct EditorWindow: View {
             .padding(.horizontal)
             .padding(.top, 8)
 
-            // Content
-            Group {
-                switch selectedTab {
-                case .presets:
-                    PresetsTab(zones: currentZonesBinding, accentColor: accentColor, aspectRatio: currentDisplayAspectRatio)
-                case .grid:
-                    GridTab(zones: currentZonesBinding, accentColor: accentColor, aspectRatio: currentDisplayAspectRatio, rows: 2, columns: 2)
-                case .settings:
-                    SettingsView(appState: appState)
+            // Content — wrapped in a ScrollView so tall tab content never
+            // pushes the button row off the bottom of the window.
+            ScrollView {
+                Group {
+                    switch selectedTab {
+                    case .presets:
+                        PresetsTab(zones: currentZonesBinding, accentColor: accentColor, aspectRatio: currentDisplayAspectRatio)
+                    case .grid:
+                        GridTab(zones: currentZonesBinding, accentColor: accentColor, aspectRatio: currentDisplayAspectRatio, rows: 2, columns: 2)
+                    case .settings:
+                        SettingsView(appState: appState)
+                    }
                 }
+                .frame(maxWidth: .infinity)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
