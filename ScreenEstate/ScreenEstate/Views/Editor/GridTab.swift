@@ -11,6 +11,7 @@ struct GridTab: View {
     @State private var selectionEnd: (row: Int, col: Int)?
     @State private var mergeErrorMessage: String?
     @State private var mergeErrorFlash: Bool = false
+    @State private var dimensionErrorMessage: String?
 
     init(zones: Binding<[Zone]>, accentColor: Color, aspectRatio: CGFloat = 16.0 / 9.0, rows: Int = 2, columns: Int = 3) {
         self._zones = zones
@@ -150,7 +151,7 @@ struct GridTab: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .center, spacing: 14) {
             // Dimension controls
             HStack(spacing: 20) {
                 Text("Custom grid layout")
@@ -160,16 +161,28 @@ struct GridTab: View {
                     dimensionStepper(label: "Rows", value: Binding(
                         get: { grid.rows },
                         set: { v in
+                            let newRows = max(1, min(6, v))
+                            if newRows * grid.columns > 9 {
+                                dimensionErrorMessage = "What do you need so many zones for bruh"
+                                return
+                            }
+                            dimensionErrorMessage = nil
                             pushHistory()
-                            grid = GridEditor(rows: max(1, min(6, v)), columns: grid.columns)
+                            grid = GridEditor(rows: newRows, columns: grid.columns)
                             clearSelection(); zones = grid.toZones()
                         }
                     ))
                     dimensionStepper(label: "Columns", value: Binding(
                         get: { grid.columns },
                         set: { v in
+                            let newCols = max(1, min(6, v))
+                            if grid.rows * newCols > 9 {
+                                dimensionErrorMessage = "What do you need so many zones for bruh"
+                                return
+                            }
+                            dimensionErrorMessage = nil
                             pushHistory()
-                            grid = GridEditor(rows: grid.rows, columns: max(1, min(6, v)))
+                            grid = GridEditor(rows: grid.rows, columns: newCols)
                             clearSelection(); zones = grid.toZones()
                         }
                     ))
@@ -188,6 +201,19 @@ struct GridTab: View {
                 }
                 .padding(.horizontal, 10).padding(.vertical, 6)
                 .background(Color.red.opacity(0.08))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+
+            // Dimension limit error banner
+            if let dimError = dimensionErrorMessage {
+                HStack(spacing: 6) {
+                    Image(systemName: "hand.raised.fill")
+                        .foregroundColor(.orange).font(.caption)
+                    Text(dimError).font(.caption).foregroundColor(.orange)
+                }
+                .padding(.horizontal, 10).padding(.vertical, 6)
+                .background(Color.orange.opacity(0.08))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
@@ -229,6 +255,7 @@ struct GridTab: View {
         }
         .padding()
         .animation(.easeInOut(duration: 0.18), value: mergeErrorMessage != nil)
+        .animation(.easeInOut(duration: 0.18), value: dimensionErrorMessage != nil)
         .animation(.easeInOut(duration: 0.12), value: selectionStart != nil)
         .onAppear {
             // Only initialize zones from the grid if no zones exist yet.
@@ -343,6 +370,7 @@ struct GridTab: View {
             }
         }
         .aspectRatio(aspectRatio, contentMode: .fit)
+        .frame(maxWidth: .infinity)
         .background(Color.black.opacity(0.04))
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.gray.opacity(0.2), lineWidth: 1))

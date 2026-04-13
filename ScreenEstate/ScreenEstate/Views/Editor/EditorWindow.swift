@@ -1,4 +1,5 @@
 import SwiftUI
+import UserNotifications
 
 struct EditorWindow: View {
     @Bindable var appState: AppState
@@ -9,6 +10,10 @@ struct EditorWindow: View {
     @State private var selectedDisplayIndex: Int = 0
     @State private var selectedTab: EditorTab = .presets
 
+    // Dirty tracking — snapshot taken when the window appears
+    @State private var savedModes: [Mode] = []
+    @State private var savedSettings: AppSettings = .defaultSettings
+
     enum EditorTab: String, CaseIterable {
         case presets = "Presets"
         case grid = "Grid"
@@ -17,6 +22,10 @@ struct EditorWindow: View {
 
     private var displays: [DisplayInfo] {
         displayService.connectedDisplays()
+    }
+
+    private var hasChanges: Bool {
+        appState.modes != savedModes || appState.settings != savedSettings
     }
 
     private var currentZonesBinding: Binding<[Zone]> {
@@ -79,30 +88,98 @@ struct EditorWindow: View {
             .padding(.top, 8)
 
             // Content
-            switch selectedTab {
-            case .presets:
-                PresetsTab(zones: currentZonesBinding, accentColor: accentColor, aspectRatio: currentDisplayAspectRatio)
-            case .grid:
-                GridTab(zones: currentZonesBinding, accentColor: accentColor, aspectRatio: currentDisplayAspectRatio)
-            case .settings:
-                SettingsView(appState: appState)
+            Group {
+                switch selectedTab {
+                case .presets:
+                    PresetsTab(zones: currentZonesBinding, accentColor: accentColor, aspectRatio: currentDisplayAspectRatio)
+                case .grid:
+                    GridTab(zones: currentZonesBinding, accentColor: accentColor, aspectRatio: currentDisplayAspectRatio, rows: 2, columns: 2)
+                case .settings:
+                    SettingsView(appState: appState)
+                }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-            Divider()
+            // Current layout preview
+            if selectedTab != .settings {
+                Divider()
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack {
+                        Text("Current Screen Estate")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        if hasChanges {
+                            Text("· Unsaved changes")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        }
+                    }
+                    ZonePreview(
+                        zones: currentZonesBinding.wrappedValue,
+                        accentColor: accentColor,
+                        aspectRatio: currentDisplayAspectRatio
+                    )
+                    .frame(height: 100)
+                }
+                .padding(.horizontal)
+                .padding(.vertical, 10)
+            }
 
             Divider()
 
             HStack {
                 Spacer()
-                Button("Done") {
+                Button("Save") {
+                    saveConfig()
+                }
+                .keyboardShortcut("s", modifiers: .command)
+                .buttonStyle(.bordered)
+                .disabled(!hasChanges)
+                .padding(.vertical)
+
+                Button("Save + Close") {
+                    saveConfig()
                     NSApp.keyWindow?.close()
                 }
                 .keyboardShortcut(.return, modifiers: [])
                 .buttonStyle(.borderedProminent)
-                .padding()
+                .disabled(!hasChanges)
+                .padding(.vertical)
+                .padding(.trailing)
             }
         }
         .frame(minWidth: 600, minHeight: 500)
+        .onAppear {
+            savedModes = appState.modes
+            savedSettings = appState.settings
+        }
+    }
+
+    private func saveConfig() {
+        let persistence = PersistenceService()
+        do {
+            try persistence.save(appState.modes, to: "modes.json")
+            try persistence.save(appState.settings, to: "settings.json")
+            // Update snapshot so buttons disable again after save
+            savedModes = appState.modes
+            savedSettings = appState.settings
+            sendSaveNotification()
+        } catch {
+            NSLog("Screen Estate: Failed to save config: \(error)")
+        }
+    }
+
+    private func sendSaveNotification() {
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
+            guard granted else { return }
+            let content = UNMutableNotificationContent()
+            content.title = "Screen Estate"
+            content.body = "Configuration saved."
+            content.sound = .default
+            let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
+            center.add(request)
+        }
     }
 
     private func ensureLayoutExists(for display: DisplayInfo) {

@@ -96,12 +96,33 @@ class WindowManipulationService {
         return size
     }
 
+    /// Check if a window reference is still valid by attempting to read an attribute.
+    func isWindowValid(_ window: AXUIElement) -> Bool {
+        var value: AnyObject?
+        let result = AXUIElementCopyAttributeValue(window, kAXPositionAttribute as CFString, &value)
+        return result == .success
+    }
+
     /// Move and resize a window to the given frame in Accessibility coordinates (top-left origin).
     /// Returns `true` if both position and size were set successfully.
     @discardableResult
     func setWindowFrame(_ window: AXUIElement, frame: CGRect) -> Bool {
+        // Pre-flight: verify accessibility is still enabled
+        if !WindowManipulationService.checkAccessibility(prompt: false) {
+            NSLog("Screen Estate [AX]: Accessibility permission not granted, cannot set window frame")
+            return false
+        }
+
+        // Pre-flight: verify the window reference is still valid
+        if !isWindowValid(window) {
+            NSLog("Screen Estate [AX]: Window reference is no longer valid (window may have closed or lost focus)")
+            return false
+        }
+
         var success = true
 
+        // Set position first, then size — setting position before size avoids
+        // the window being clipped by the display edge at its old size.
         var position = frame.origin
         if let posValue = AXValueCreate(.cgPoint, &position) {
             let posResult = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, posValue)

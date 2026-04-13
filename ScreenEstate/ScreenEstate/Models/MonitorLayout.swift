@@ -1,7 +1,7 @@
 import Foundation
 import CoreGraphics
 
-struct MonitorLayout: Identifiable, Codable {
+struct MonitorLayout: Identifiable, Codable, Equatable {
     let id: UUID
     var displayIdentifier: String
     var displayName: String

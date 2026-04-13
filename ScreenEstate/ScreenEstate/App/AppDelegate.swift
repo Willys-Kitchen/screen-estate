@@ -9,9 +9,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var lastAccessibilityAlertDate: Date?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        if !WindowManipulationService.checkAccessibility(prompt: false) {
-            NSLog("Screen Estate: Accessibility permission not granted.")
-            showAccessibilityAlert()
+        if !WindowManipulationService.checkAccessibility(prompt: true) {
+            NSLog("Screen Estate: Accessibility permission not granted. Prompting user.")
         }
 
         // Services will be started once appState is set

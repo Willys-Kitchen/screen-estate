@@ -70,13 +70,15 @@ class SnappingEngine {
 
         switch state {
         case .idle:
-            // Try to get window now, or use the one cached when Shift was pressed
-            let window = windowService.getFocusedWindow() ?? cachedWindow
-            guard let window else {
-                NSLog("Screen Estate: No focused window found")
+            // Prefer a fresh window reference; fall back to the one cached on Shift press.
+            // Validate the cached reference is still alive before using it.
+            let freshWindow = windowService.getFocusedWindow()
+            let validCached = cachedWindow.flatMap { windowService.isWindowValid($0) ? $0 : nil }
+            guard let window = freshWindow ?? validCached else {
+                NSLog("Screen Estate: No focused window found (fresh and cached both nil/invalid)")
                 return
             }
-            NSLog("Screen Estate: Started tracking drag")
+            NSLog("Screen Estate: Started tracking drag (used \(freshWindow != nil ? "fresh" : "cached") window)")
             state = .tracking(window: window)
             showOverlaysForCurrentMode()
             updateHitTest()
@@ -90,8 +92,15 @@ class SnappingEngine {
         guard case .tracking(let window) = state else { return }
 
         if let zone = activeZone {
-            NSLog("Screen Estate: Snapping to zone \(zone.number)")
-            snapWindow(window, to: zone)
+            // Re-validate the window reference before snapping — it may have
+            // become stale during the drag (e.g. window closed, app quit).
+            if windowService.isWindowValid(window) {
+                NSLog("Screen Estate: Snapping to zone \(zone.number)")
+                snapWindow(window, to: zone)
+            } else {
+                NSLog("Screen Estate: Window became invalid during drag, cannot snap")
+                onSnapFailed?()
+            }
         } else {
             NSLog("Screen Estate: Mouse up but no active zone")
         }
