@@ -1,6 +1,8 @@
 # Screen Estate
 
-A macOS window manager that lets you snap windows into customisable zones by holding **Shift** and dragging.
+Screen Estate is a macOS window snapping utility, similar to [FancyZones](https://learn.microsoft.com/en-us/windows/powertoys/fancyzones) on Windows — free and fully vibe coded.
+
+Hold **Shift** while dragging a window and your defined zones appear on screen. Drag into one and the window resizes to fill it. Zones are configured per display and saved per mode, so you can have different layouts for different workflows.
 
 ## Features
 
