@@ -59,7 +59,7 @@ struct ScreenEstateApp: App {
     private let autoSaveController: AutoSaveController
 
     var body: some Scene {
-        MenuBarExtra("Screen Estate", systemImage: "rectangle.split.3x3") {
+        MenuBarExtra("Screen Estate", image: "MenuBarIcon") {
             MenuBarView(appState: appState, onOpenEditor: openEditor)
                 .onAppear {
                     appDelegate.setAppState(appState)
