@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="220" fill="#F5F0EA"/>
+
+  <!-- House roof with eave overhangs
+       Eaves extend ~80px past the monitor edges on each side.
+       Small downward ticks at each eave end. -->
+  <path d="M 112 424 L 512 112 L 912 424"
+        fill="none"
+        stroke="#1C1C1E"
+        stroke-width="44"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <!-- Monitor bezel -->
+  <rect x="188" y="420" width="648" height="372" rx="28"
+        fill="#F5F0EA"
+        stroke="#1C1C1E"
+        stroke-width="40"/>
+
+  <!-- Grid horizontal line -->
+  <line x1="188" y1="606" x2="836" y2="606"
+        stroke="#1C1C1E" stroke-width="36"/>
+
+  <!-- Grid vertical line -->
+  <line x1="512" y1="420" x2="512" y2="792"
+        stroke="#1C1C1E" stroke-width="36"/>
+
+  <!-- Stand neck -->
+  <line x1="512" y1="792" x2="512" y2="848"
+        stroke="#1C1C1E" stroke-width="36" stroke-linecap="round"/>
+
+  <!-- Stand base -->
+  <line x1="390" y1="872" x2="634" y2="872"
+        stroke="#1C1C1E" stroke-width="36" stroke-linecap="round"/>
+
+</svg>

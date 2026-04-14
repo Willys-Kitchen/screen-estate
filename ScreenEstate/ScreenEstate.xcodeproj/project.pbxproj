@@ -37,6 +37,7 @@
 		AD242AF00E3D595D9A950432 /* GridEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2C9F44821874340C79500D5 /* GridEditorTests.swift */; };
 		AD3ABE2EF04E7B60E499B048 /* HotkeyService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 274CA6777B61C4567112D5FA /* HotkeyService.swift */; };
 		B00EB6C335E31F28A7235687 /* EditorWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = F202A5A744FA04597D038735 /* EditorWindow.swift */; };
+		B19D5BCD501F254D7353E6F6 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2D6C41CF451109E697EC47AF /* Assets.xcassets */; };
 		B1A38F28A16DA91473C12EC3 /* MonitorLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1182B1330F09E9E8973F156C /* MonitorLayoutTests.swift */; };
 		D24F1C60C0A5CAC7AD1A81D4 /* CoordinateConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A836B63A1DB9C1A9BF27061D /* CoordinateConverter.swift */; };
 		D2BBC118C3C0933A0C91B1BB /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5569E72D18DE674671A505 /* AppState.swift */; };
@@ -60,6 +61,7 @@
 		1182B1330F09E9E8973F156C /* MonitorLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitorLayoutTests.swift; sourceTree = "<group>"; };
 		274CA6777B61C4567112D5FA /* HotkeyService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyService.swift; sourceTree = "<group>"; };
 		28CED82D674728D455A47A9B /* ZonePreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZonePreview.swift; sourceTree = "<group>"; };
+		2D6C41CF451109E697EC47AF /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		302F58795CCCE0BEC492DB99 /* GridTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GridTab.swift; sourceTree = "<group>"; };
 		3494288A9168F7FB3E80BDBB /* ScreenEstateTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ScreenEstateTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		34AC41CE6802ED0EBBD0EC70 /* ScreenEstateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenEstateTests.swift; sourceTree = "<group>"; };
@@ -187,6 +189,7 @@
 		B960C7DEB77974C88585B795 /* ScreenEstate */ = {
 			isa = PBXGroup;
 			children = (
+				2D6C41CF451109E697EC47AF /* Assets.xcassets */,
 				00397890F4B10A6F517132CE /* Info.plist */,
 				C1554744C25086E04077E8E8 /* ScreenEstate.entitlements */,
 				8F940A177310A54CCC9EF509 /* App */,
@@ -248,6 +251,7 @@
 			buildConfigurationList = F778ECB9AA3B38EABF1DF590 /* Build configuration list for PBXNativeTarget "ScreenEstate" */;
 			buildPhases = (
 				9446B35B10688005A26C7249 /* Sources */,
+				324A66DBF45081AA6B670D7B /* Resources */,
 			);
 			buildRules = (
 			);
@@ -293,6 +297,17 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		324A66DBF45081AA6B670D7B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B19D5BCD501F254D7353E6F6 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		2442B85A895FF984966A2230 /* Sources */ = {
