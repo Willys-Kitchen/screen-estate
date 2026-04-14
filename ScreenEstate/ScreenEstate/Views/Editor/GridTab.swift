@@ -272,108 +272,114 @@ struct GridTab: View {
 
     private var gridEditorView: some View {
         GeometryReader { geo in
-            let W = geo.size.width
-            let H = geo.size.height
-            let cellW = W / CGFloat(grid.columns)
-            let cellH = H / CGFloat(grid.rows)
-            let gap: CGFloat = 3
-
-            ZStack(alignment: .topLeading) {
-
-                // 1. Zone group fill + border (non-interactive)
-                ForEach(orderedGroups, id: \.self) { groupID in
-                    let b = bounds(ofGroup: groupID)
-                    let x = CGFloat(b.minCol) * cellW + gap / 2
-                    let y = CGFloat(b.minRow) * cellH + gap / 2
-                    let w = CGFloat(b.maxCol - b.minCol + 1) * cellW - gap
-                    let h = CGFloat(b.maxRow - b.minRow + 1) * cellH - gap
-                    let num = zoneNumber(forGroup: groupID)
-
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(Color.gray.opacity(0.12))
-                        .overlay(RoundedRectangle(cornerRadius: 5)
-                            .stroke(Color.gray.opacity(0.4), lineWidth: 1))
-                        .overlay(
-                            Text(num > 0 ? "\(num)" : "")
-                                .font(.system(size: min(w, h) * 0.28, weight: .semibold))
-                                .foregroundColor(.secondary)
-                        )
-                        .frame(width: w, height: h)
-                        .position(x: x + w / 2, y: y + h / 2)
-                        .allowsHitTesting(false)
-                }
-
-                // 2. Selection rectangle overlay (non-interactive)
-                if let r = selectedRange {
-                    let x = CGFloat(r.minCol) * cellW + gap / 2
-                    let y = CGFloat(r.minRow) * cellH + gap / 2
-                    let w = CGFloat(r.maxCol - r.minCol + 1) * cellW - gap
-                    let h = CGFloat(r.maxRow - r.minRow + 1) * cellH - gap
-
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(selectionIsInvalid ? Color.red.opacity(0.15) : accentColor.opacity(0.2))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 5)
-                                .stroke(selectionIsInvalid ? Color.red.opacity(0.8) : accentColor,
-                                        style: StrokeStyle(lineWidth: 2, dash: [5, 3]))
-                        )
-                        .frame(width: w, height: h)
-                        .position(x: x + w / 2, y: y + h / 2)
-                        .allowsHitTesting(false)
-                }
-
-                // 3. First-click anchor indicator — spans the whole group (non-interactive)
-                if selectedRange == nil, let s = selectionStart {
-                    let groupID = grid.cells[s.row][s.col]
-                    let b = bounds(ofGroup: groupID)
-                    let x = CGFloat(b.minCol) * cellW + gap / 2
-                    let y = CGFloat(b.minRow) * cellH + gap / 2
-                    let w = CGFloat(b.maxCol - b.minCol + 1) * cellW - gap
-                    let h = CGFloat(b.maxRow - b.minRow + 1) * cellH - gap
-
-                    RoundedRectangle(cornerRadius: 5)
-                        .fill(accentColor.opacity(0.15))
-                        .overlay(RoundedRectangle(cornerRadius: 5)
-                            .stroke(accentColor, lineWidth: 2))
-                        .frame(width: w, height: h)
-                        .position(x: x + w / 2, y: y + h / 2)
-                        .allowsHitTesting(false)
-                }
-
-                // 4. Tap target grid — topmost, handles all interactions
-                ForEach(0..<grid.rows, id: \.self) { row in
-                    ForEach(0..<grid.columns, id: \.self) { col in
-                        let x = CGFloat(col) * cellW
-                        let y = CGFloat(row) * cellH
-
-                        Color.clear
-                            .frame(width: cellW, height: cellH)
-                            .contentShape(Rectangle())
-                            .position(x: x + cellW / 2, y: y + cellH / 2)
-                            .gesture(
-                                TapGesture(count: 2).onEnded {
-                                    handleDoubleTap(row: row, col: col)
-                                }
-                            )
-                            .simultaneousGesture(
-                                TapGesture(count: 1).modifiers(.control).onEnded {
-                                    handleTap(row: row, col: col, isCtrlClick: true)
-                                }
-                            )
-                            .simultaneousGesture(
-                                TapGesture(count: 1).onEnded {
-                                    handleTap(row: row, col: col)
-                                }
-                            )
-                    }
-                }
-            }
+            gridCanvas(width: geo.size.width, height: geo.size.height)
         }
-        .aspectRatio(aspectRatio, contentMode: .fit)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black.opacity(0.04))
         .clipShape(RoundedRectangle(cornerRadius: 6))
         .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.gray.opacity(0.2), lineWidth: 1))
+    }
+
+    @ViewBuilder
+    private func gridCanvas(width W: CGFloat, height H: CGFloat) -> some View {
+        let cellW = W / CGFloat(grid.columns)
+        let cellH = H / CGFloat(grid.rows)
+        let gap: CGFloat = 3
+
+        ZStack(alignment: .topLeading) {
+            groupFills(cellW: cellW, cellH: cellH, gap: gap)
+            selectionOverlay(cellW: cellW, cellH: cellH, gap: gap)
+            anchorOverlay(cellW: cellW, cellH: cellH, gap: gap)
+            tapTargets(cellW: cellW, cellH: cellH)
+        }
+    }
+
+    @ViewBuilder
+    private func groupFills(cellW: CGFloat, cellH: CGFloat, gap: CGFloat) -> some View {
+        ForEach(orderedGroups, id: \.self) { groupID in
+            let b = bounds(ofGroup: groupID)
+            let x = CGFloat(b.minCol) * cellW + gap / 2
+            let y = CGFloat(b.minRow) * cellH + gap / 2
+            let w = CGFloat(b.maxCol - b.minCol + 1) * cellW - gap
+            let h = CGFloat(b.maxRow - b.minRow + 1) * cellH - gap
+            let num = zoneNumber(forGroup: groupID)
+
+            RoundedRectangle(cornerRadius: 5)
+                .fill(Color.gray.opacity(0.12))
+                .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.gray.opacity(0.4), lineWidth: 1))
+                .overlay(
+                    Text(num > 0 ? "\(num)" : "")
+                        .font(.system(size: min(w, h) * 0.28, weight: .semibold))
+                        .foregroundColor(.secondary)
+                )
+                .frame(width: w, height: h)
+                .position(x: x + w / 2, y: y + h / 2)
+                .allowsHitTesting(false)
+        }
+    }
+
+    @ViewBuilder
+    private func selectionOverlay(cellW: CGFloat, cellH: CGFloat, gap: CGFloat) -> some View {
+        if let r = selectedRange {
+            let x = CGFloat(r.minCol) * cellW + gap / 2
+            let y = CGFloat(r.minRow) * cellH + gap / 2
+            let w = CGFloat(r.maxCol - r.minCol + 1) * cellW - gap
+            let h = CGFloat(r.maxRow - r.minRow + 1) * cellH - gap
+
+            RoundedRectangle(cornerRadius: 5)
+                .fill(selectionIsInvalid ? Color.red.opacity(0.15) : accentColor.opacity(0.2))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(selectionIsInvalid ? Color.red.opacity(0.8) : accentColor,
+                                style: StrokeStyle(lineWidth: 2, dash: [5, 3]))
+                )
+                .frame(width: w, height: h)
+                .position(x: x + w / 2, y: y + h / 2)
+                .allowsHitTesting(false)
+        }
+    }
+
+    @ViewBuilder
+    private func anchorOverlay(cellW: CGFloat, cellH: CGFloat, gap: CGFloat) -> some View {
+        if selectedRange == nil, let s = selectionStart {
+            let groupID = grid.cells[s.row][s.col]
+            let b = bounds(ofGroup: groupID)
+            let x = CGFloat(b.minCol) * cellW + gap / 2
+            let y = CGFloat(b.minRow) * cellH + gap / 2
+            let w = CGFloat(b.maxCol - b.minCol + 1) * cellW - gap
+            let h = CGFloat(b.maxRow - b.minRow + 1) * cellH - gap
+
+            RoundedRectangle(cornerRadius: 5)
+                .fill(accentColor.opacity(0.15))
+                .overlay(RoundedRectangle(cornerRadius: 5).stroke(accentColor, lineWidth: 2))
+                .frame(width: w, height: h)
+                .position(x: x + w / 2, y: y + h / 2)
+                .allowsHitTesting(false)
+        }
+    }
+
+    @ViewBuilder
+    private func tapTargets(cellW: CGFloat, cellH: CGFloat) -> some View {
+        ForEach(0..<grid.rows, id: \.self) { row in
+            ForEach(0..<grid.columns, id: \.self) { col in
+                let x = CGFloat(col) * cellW
+                let y = CGFloat(row) * cellH
+
+                Color.clear
+                    .frame(width: cellW, height: cellH)
+                    .contentShape(Rectangle())
+                    .position(x: x + cellW / 2, y: y + cellH / 2)
+                    .gesture(TapGesture(count: 2).onEnded { handleDoubleTap(row: row, col: col) })
+                    .simultaneousGesture(
+                        TapGesture(count: 1).modifiers(.control).onEnded {
+                            handleTap(row: row, col: col, isCtrlClick: true)
+                        }
+                    )
+                    .simultaneousGesture(
+                        TapGesture(count: 1).onEnded { handleTap(row: row, col: col) }
+                    )
+            }
+        }
     }
 
     // MARK: - Hint

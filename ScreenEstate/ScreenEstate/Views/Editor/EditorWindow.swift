@@ -87,20 +87,17 @@ struct EditorWindow: View {
             .padding(.horizontal)
             .padding(.top, 8)
 
-            // Content — wrapped in a ScrollView so tall tab content never
-            // pushes the button row off the bottom of the window.
-            ScrollView {
-                Group {
-                    switch selectedTab {
-                    case .presets:
-                        PresetsTab(zones: currentZonesBinding, accentColor: accentColor, aspectRatio: currentDisplayAspectRatio)
-                    case .grid:
-                        GridTab(zones: currentZonesBinding, accentColor: accentColor, aspectRatio: currentDisplayAspectRatio, rows: 2, columns: 2)
-                    case .settings:
-                        SettingsView(appState: appState)
-                    }
+            // Content — fills available space; each tab is responsible for
+            // fitting its own content within the frame it receives.
+            Group {
+                switch selectedTab {
+                case .presets:
+                    PresetsTab(zones: currentZonesBinding, accentColor: accentColor, aspectRatio: currentDisplayAspectRatio)
+                case .grid:
+                    GridTab(zones: currentZonesBinding, accentColor: accentColor, aspectRatio: currentDisplayAspectRatio, rows: 2, columns: 2)
+                case .settings:
+                    SettingsView(appState: appState)
                 }
-                .frame(maxWidth: .infinity)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -132,7 +129,17 @@ struct EditorWindow: View {
             Divider()
 
             HStack {
+                Button("Reset") {
+                    resetConfig()
+                }
+                .keyboardShortcut("z", modifiers: [.command, .shift])
+                .buttonStyle(.bordered)
+                .disabled(!hasChanges)
+                .padding(.vertical)
+                .padding(.leading)
+
                 Spacer()
+
                 Button("Save") {
                     saveConfig()
                 }
@@ -157,6 +164,11 @@ struct EditorWindow: View {
             savedModes = appState.modes
             savedSettings = appState.settings
         }
+    }
+
+    private func resetConfig() {
+        appState.modes = savedModes
+        appState.settings = savedSettings
     }
 
     private func saveConfig() {
