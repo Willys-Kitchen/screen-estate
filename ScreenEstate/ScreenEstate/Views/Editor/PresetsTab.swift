@@ -39,46 +39,66 @@ struct PresetsTab: View {
         }
     }
 
-    private func presetsGrid(in size: CGSize) -> some View {
-        let outerPad: CGFloat = 32          // 16 top + 16 bottom
-        let headlineH: CGFloat = 28         // headline row
-        let cardSpacing: CGFloat = 12
-        let numCols = max(1, Int(size.width / 130))
-        let numRows = max(1, Int(ceil(Double(presets.count) / Double(numCols))))
-        let availableH = size.height - outerPad - headlineH - cardSpacing
-        let cardH = (availableH - cardSpacing * CGFloat(numRows - 1)) / CGFloat(numRows)
-        // card internals: 8 top pad + ZonePreview + 8 spacing + caption (~16) + 8 bottom pad
-        let previewH = max(30, cardH - 16 - 8 - 16)
+    private func optimalColumnCount(availableW: CGFloat, availableH: CGFloat, spacing: CGFloat) -> Int {
+        let count = presets.count
+        // Walk from 1 column up; pick the fewest columns (most rows) that still fit.
+        // Card height is determined purely by aspect ratio so the preview looks correct.
+        for cols in 1...count {
+            let rows = Int(ceil(Double(count) / Double(cols)))
+            let cardW = (availableW - spacing * CGFloat(cols - 1)) / CGFloat(cols)
+            let cardH = cardW / aspectRatio
+            let totalH = CGFloat(rows) * cardH + CGFloat(rows - 1) * spacing
+            if totalH <= availableH {
+                return cols
+            }
+        }
+        return count
+    }
 
-        return VStack(alignment: .leading, spacing: cardSpacing) {
+    private func presetsGrid(in size: CGSize) -> some View {
+        let pad: CGFloat = 16
+        let spacing: CGFloat = 12
+        let headlineH: CGFloat = 28 + spacing  // headline + gap below it
+        let availableW = size.width - pad * 2
+        let availableH = size.height - pad * 2 - headlineH
+        let numCols = optimalColumnCount(availableW: availableW, availableH: availableH, spacing: spacing)
+
+        return VStack(alignment: .leading, spacing: spacing) {
             Text("Choose a preset layout")
                 .font(.headline)
 
             LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: cardSpacing), count: numCols),
-                spacing: cardSpacing
+                columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: numCols),
+                spacing: spacing
             ) {
                 ForEach(presets) { preset in
-                    Button {
-                        zones = preset.zones
-                    } label: {
-                        VStack(spacing: 8) {
-                            ZonePreview(zones: preset.zones, accentColor: accentColor, aspectRatio: aspectRatio)
-                                .frame(height: previewH)
-                            Text(preset.name)
-                                .font(.caption)
-                        }
-                        .padding(8)
-                        .frame(maxWidth: .infinity)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(Color.gray.opacity(0.1))
-                        )
-                    }
-                    .buttonStyle(.plain)
+                    presetCard(preset)
                 }
             }
         }
-        .padding()
+        .padding(pad)
+    }
+
+    private func presetCard(_ preset: PresetOption) -> some View {
+        Button {
+            zones = preset.zones
+        } label: {
+            ZStack(alignment: .bottom) {
+                ZonePreview(zones: preset.zones, accentColor: accentColor, aspectRatio: aspectRatio)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                // Label overlaid at the bottom
+                Text(preset.name)
+                    .font(.caption)
+                    .foregroundColor(.primary)
+                    .padding(.vertical, 5)
+                    .frame(maxWidth: .infinity)
+                    .background(.ultraThinMaterial)
+            }
+            .aspectRatio(aspectRatio, contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.gray.opacity(0.2), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
     }
 }
