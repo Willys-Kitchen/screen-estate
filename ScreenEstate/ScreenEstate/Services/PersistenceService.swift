@@ -1,5 +1,10 @@
 import Foundation
 
+enum ConfigFile: String {
+    case modes = "modes.json"
+    case settings = "settings.json"
+}
+
 class PersistenceService {
     let baseDirectory: URL
 
@@ -13,16 +18,16 @@ class PersistenceService {
         }
     }
 
-    func save<T: Encodable>(_ value: T, to filename: String) throws {
+    func save<T: Encodable>(_ value: T, to file: ConfigFile) throws {
         try FileManager.default.createDirectory(at: baseDirectory, withIntermediateDirectories: true)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         let data = try encoder.encode(value)
-        try data.write(to: baseDirectory.appendingPathComponent(filename))
+        try data.write(to: baseDirectory.appendingPathComponent(file.rawValue), options: .atomic)
     }
 
-    func load<T: Decodable>(from filename: String) throws -> T {
-        let url = baseDirectory.appendingPathComponent(filename)
+    func load<T: Decodable>(from file: ConfigFile) throws -> T {
+        let url = baseDirectory.appendingPathComponent(file.rawValue)
         let data = try Data(contentsOf: url)
         return try JSONDecoder().decode(T.self, from: data)
     }

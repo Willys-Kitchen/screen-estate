@@ -1,9 +1,9 @@
 import SwiftUI
-import UserNotifications
 
 struct EditorWindow: View {
     @Bindable var appState: AppState
     let displayService: DisplayService
+    let persistence: PersistenceService
 
     @Environment(\.dismiss) private var dismiss
 
@@ -13,6 +13,7 @@ struct EditorWindow: View {
     // Dirty tracking — snapshot taken when the window appears
     @State private var savedModes: [Mode] = []
     @State private var savedSettings: AppSettings = .defaultSettings
+    @State private var showSavedConfirmation = false
 
     enum EditorTab: String, CaseIterable {
         case presets = "Presets"
@@ -104,7 +105,7 @@ struct EditorWindow: View {
             // Current layout preview
             if selectedTab != .settings {
                 Divider()
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .center, spacing: 6) {
                     HStack {
                         Text("Current Screen Estate")
                             .font(.caption)
@@ -140,6 +141,17 @@ struct EditorWindow: View {
 
                 Spacer()
 
+                if showSavedConfirmation {
+                    Label("Saved", systemImage: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                        .transition(.opacity)
+                        .onAppear {
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                withAnimation { showSavedConfirmation = false }
+                            }
+                        }
+                }
+
                 Button("Save") {
                     saveConfig()
                 }
@@ -172,29 +184,15 @@ struct EditorWindow: View {
     }
 
     private func saveConfig() {
-        let persistence = PersistenceService()
         do {
-            try persistence.save(appState.modes, to: "modes.json")
-            try persistence.save(appState.settings, to: "settings.json")
+            try persistence.save(appState.modes, to: .modes)
+            try persistence.save(appState.settings, to: .settings)
             // Update snapshot so buttons disable again after save
             savedModes = appState.modes
             savedSettings = appState.settings
-            sendSaveNotification()
+            withAnimation { showSavedConfirmation = true }
         } catch {
             NSLog("Screen Estate: Failed to save config: \(error)")
-        }
-    }
-
-    private func sendSaveNotification() {
-        let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
-            guard granted else { return }
-            let content = UNMutableNotificationContent()
-            content.title = "Screen Estate"
-            content.body = "Configuration saved."
-            content.sound = .default
-            let request = UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil)
-            center.add(request)
         }
     }
 

@@ -18,7 +18,8 @@ class OverlayManager {
                 let id = DisplayService.makeIdentifier(
                     vendor: CGDisplayVendorNumber(screenNumber),
                     model: CGDisplayModelNumber(screenNumber),
-                    serial: CGDisplaySerialNumber(screenNumber)
+                    serial: CGDisplaySerialNumber(screenNumber),
+                    displayID: screenNumber
                 )
                 return id == display.identifier
             }

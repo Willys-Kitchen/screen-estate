@@ -22,7 +22,7 @@ final class PersistenceServiceTests: XCTestCase {
     func testCreatesBaseDirectoryOnSave() throws {
         XCTAssertFalse(FileManager.default.fileExists(atPath: tempDir.path))
         let zone = Zone(id: UUID(), number: 1, proportionalFrame: .zero)
-        try service.save([zone], to: "test.json")
+        try service.save([zone], to: .modes)
         XCTAssertTrue(FileManager.default.fileExists(atPath: tempDir.path))
     }
 
@@ -43,8 +43,8 @@ final class PersistenceServiceTests: XCTestCase {
                 ]
             ),
         ]
-        try service.save(modes, to: "modes.json")
-        let loaded: [Mode] = try service.load(from: "modes.json")
+        try service.save(modes, to: .modes)
+        let loaded: [Mode] = try service.load(from: .modes)
         XCTAssertEqual(loaded.count, 1)
         XCTAssertEqual(loaded[0].name, "Coding")
         XCTAssertEqual(loaded[0].layouts[0].zones.count, 2)
@@ -59,8 +59,8 @@ final class PersistenceServiceTests: XCTestCase {
             isEnabled: false,
             isDragSnapEnabled: true
         )
-        try service.save(settings, to: "settings.json")
-        let loaded: AppSettings = try service.load(from: "settings.json")
+        try service.save(settings, to: .settings)
+        let loaded: AppSettings = try service.load(from: .settings)
         XCTAssertEqual(loaded.modifierKey, commandKey)
         XCTAssertTrue(loaded.launchAtLogin)
         XCTAssertFalse(loaded.isEnabled)
@@ -69,7 +69,7 @@ final class PersistenceServiceTests: XCTestCase {
     // MARK: - Missing File
 
     func testLoadMissingFileReturnsNil() {
-        let result: [Mode]? = try? service.load(from: "nonexistent.json")
+        let result: [Mode]? = try? service.load(from: .modes)
         XCTAssertNil(result)
     }
 
@@ -77,12 +77,12 @@ final class PersistenceServiceTests: XCTestCase {
 
     func testSaveOverwritesExistingFile() throws {
         let modes1 = [Mode(id: UUID(), name: "First", layouts: [])]
-        try service.save(modes1, to: "modes.json")
+        try service.save(modes1, to: .modes)
 
         let modes2 = [Mode(id: UUID(), name: "Second", layouts: [])]
-        try service.save(modes2, to: "modes.json")
+        try service.save(modes2, to: .modes)
 
-        let loaded: [Mode] = try service.load(from: "modes.json")
+        let loaded: [Mode] = try service.load(from: .modes)
         XCTAssertEqual(loaded.count, 1)
         XCTAssertEqual(loaded[0].name, "Second")
     }
@@ -91,7 +91,7 @@ final class PersistenceServiceTests: XCTestCase {
 
     func testSavedJSONIsPrettyPrinted() throws {
         let modes = [Mode(id: UUID(), name: "Test", layouts: [])]
-        try service.save(modes, to: "modes.json")
+        try service.save(modes, to: .modes)
         let data = try Data(contentsOf: tempDir.appendingPathComponent("modes.json"))
         let jsonString = String(data: data, encoding: .utf8)!
         XCTAssertTrue(jsonString.contains("\n"), "JSON should be pretty-printed with newlines")

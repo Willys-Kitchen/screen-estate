@@ -62,7 +62,7 @@ struct SettingsView: View {
                 ColorPicker("Accent Color", selection: accentColorBinding)
             }
 
-            Section("Keyboard Shortcut") {
+            Section("Modifier Key") {
                 modifierToggle("⌃  Control",
                     isOn: appState.settings.modifierKey.control,
                     flag: .control)
@@ -75,13 +75,20 @@ struct SettingsView: View {
                 modifierToggle("⌘  Command",
                     isOn: appState.settings.modifierKey.command,
                     flag: .command)
-                LabeledContent("Shortcut") {
-                    Text("\(appState.settings.modifierKey.displayString) + 1 … 9")
-                        .foregroundColor(.secondary)
-                }
                 Text("At least one modifier must be selected")
                     .font(.caption)
                     .foregroundColor(.secondary)
+            }
+
+            Section("Shortcuts") {
+                LabeledContent("Snap to zone") {
+                    Text("\(appState.settings.modifierKey.displayString) + 1 … 9")
+                        .foregroundColor(.secondary)
+                }
+                LabeledContent("Cycle mode") {
+                    Text("\(appState.settings.modifierKey.displayString) + 0")
+                        .foregroundColor(.secondary)
+                }
             }
 
             Section("Drag to Snap") {

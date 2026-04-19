@@ -10,8 +10,13 @@ final class DisplayServiceTests: XCTestCase {
         XCTAssertEqual(id, "v1234-m5678-s9012")
     }
 
-    func testDisplayIdentifierWithZeroSerial() {
-        // Some displays report serial as 0
+    func testDisplayIdentifierWithZeroSerialUsesDisplayID() {
+        // Some displays report serial as 0; fall back to displayID as tiebreaker
+        let id = DisplayService.makeIdentifier(vendor: 1234, model: 5678, serial: 0, displayID: 42)
+        XCTAssertEqual(id, "v1234-m5678-d42")
+    }
+
+    func testDisplayIdentifierWithZeroSerialAndNoDisplayID() {
         let id = DisplayService.makeIdentifier(vendor: 1234, model: 5678, serial: 0)
         XCTAssertEqual(id, "v1234-m5678-s0")
     }
@@ -19,6 +24,12 @@ final class DisplayServiceTests: XCTestCase {
     func testDifferentDisplaysGetDifferentIdentifiers() {
         let id1 = DisplayService.makeIdentifier(vendor: 1234, model: 5678, serial: 1)
         let id2 = DisplayService.makeIdentifier(vendor: 1234, model: 5678, serial: 2)
+        XCTAssertNotEqual(id1, id2)
+    }
+
+    func testIdenticalDisplaysWithZeroSerialDifferByDisplayID() {
+        let id1 = DisplayService.makeIdentifier(vendor: 1234, model: 5678, serial: 0, displayID: 1)
+        let id2 = DisplayService.makeIdentifier(vendor: 1234, model: 5678, serial: 0, displayID: 2)
         XCTAssertNotEqual(id1, id2)
     }
 

@@ -38,12 +38,12 @@ class AutoSaveController {
 
     private func performSave() {
         do {
-            try persistence.save(appState.modes, to: "modes.json")
+            try persistence.save(appState.modes, to: .modes)
         } catch {
             NSLog("Screen Estate: Failed to save modes: \(error)")
         }
         do {
-            try persistence.save(appState.settings, to: "settings.json")
+            try persistence.save(appState.settings, to: .settings)
         } catch {
             NSLog("Screen Estate: Failed to save settings: \(error)")
         }
@@ -67,7 +67,7 @@ struct ScreenEstateApp: App {
         }
 
         Window("Zone Editor", id: "editor") {
-            EditorWindow(appState: appState, displayService: displayService)
+            EditorWindow(appState: appState, displayService: displayService, persistence: persistence)
         }
         .defaultSize(width: 650, height: 550)
     }
@@ -78,7 +78,7 @@ struct ScreenEstateApp: App {
         let displayService = DisplayService()
 
         do {
-            let modes: [Mode] = try persistence.load(from: "modes.json")
+            let modes: [Mode] = try persistence.load(from: .modes)
             if !modes.isEmpty {
                 state.modes = modes
             } else {
@@ -98,14 +98,14 @@ struct ScreenEstateApp: App {
             let defaultMode = Mode(id: UUID(), name: "Default", layouts: layouts)
             state.modes = [defaultMode]
             do {
-                try persistence.save(state.modes, to: "modes.json")
+                try persistence.save(state.modes, to: .modes)
             } catch {
                 NSLog("Screen Estate: Failed to save default modes: \(error)")
             }
         }
 
         do {
-            let settings: AppSettings = try persistence.load(from: "settings.json")
+            let settings: AppSettings = try persistence.load(from: .settings)
             state.settings = settings
         } catch {
             NSLog("Screen Estate: Failed to load settings, using defaults: \(error)")

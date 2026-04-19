@@ -1,26 +1,26 @@
 import SwiftUI
 import AppKit
+import os
 
 @MainActor
 final class KeyRecorderModel: ObservableObject {
     @Published var isRecording = false
     @Published var liveFlags: NSEvent.ModifierFlags = []
-    // Written and read on main thread by both monitors — safe without actor isolation
-    nonisolated(unsafe) private var capturedFlags: NSEvent.ModifierFlags = []
+    private let capturedFlags = OSAllocatedUnfairLock(initialState: NSEvent.ModifierFlags())
     private var flagsMonitor: Any?
     private var keyMonitor: Any?
 
     func startRecording(onSave: @escaping @MainActor (CustomModifierKey) -> Void) {
         isRecording = true
         liveFlags = []
-        capturedFlags = []
+        capturedFlags.withLock { $0 = [] }
 
         // Global monitor: fires regardless of whether the app is "active"
         flagsMonitor = NSEvent.addGlobalMonitorForEvents(matching: .flagsChanged) { [weak self] event in
             let newFlags = event.modifierFlags
                 .intersection(.deviceIndependentFlagsMask)
                 .subtracting([.capsLock, .numericPad, .function, .help])
-            self?.capturedFlags = newFlags
+            self?.capturedFlags.withLock { $0 = newFlags }
             Task { @MainActor [weak self] in
                 self?.liveFlags = newFlags
             }
@@ -31,7 +31,7 @@ final class KeyRecorderModel: ObservableObject {
             guard let self else { return event }
             let keyCode = event.keyCode
             let chars = event.charactersIgnoringModifiers
-            let flags = self.capturedFlags
+            let flags = self.capturedFlags.withLock { $0 }
 
             if keyCode == 53 { // Escape — cancel
                 Task { @MainActor [weak self] in self?.stop() }
@@ -63,7 +63,7 @@ final class KeyRecorderModel: ObservableObject {
         if let m = keyMonitor { NSEvent.removeMonitor(m); keyMonitor = nil }
         isRecording = false
         liveFlags = []
-        capturedFlags = []
+        capturedFlags.withLock { $0 = [] }
     }
 }
 

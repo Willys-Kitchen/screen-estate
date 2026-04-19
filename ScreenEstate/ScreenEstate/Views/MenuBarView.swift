@@ -39,19 +39,6 @@ struct MenuBarView: View {
             onOpenEditor()
         }
 
-        Button("Test Accessibility...") {
-            let service = WindowManipulationService()
-            let trusted = WindowManipulationService.checkAccessibility(prompt: false)
-            let window = service.getFocusedWindow()
-            let alert = NSAlert()
-            alert.messageText = "Accessibility Test"
-            alert.informativeText = """
-            AX Trusted: \(trusted)
-            Focused window: \(window != nil ? "FOUND ✓" : "nil ✗")
-            """
-            alert.runModal()
-        }
-
         Divider()
 
         Button("Quit") {

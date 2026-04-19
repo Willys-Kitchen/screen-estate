@@ -11,11 +11,17 @@ struct DisplayInfo {
 class DisplayService {
     private var screenChangeObserver: NSObjectProtocol?
 
-    static func makeIdentifier(vendor: UInt32, model: UInt32, serial: UInt32) -> String {
-        "v\(vendor)-m\(model)-s\(serial)"
+    static func makeIdentifier(vendor: UInt32, model: UInt32, serial: UInt32, displayID: CGDirectDisplayID? = nil) -> String {
+        if serial != 0 {
+            return "v\(vendor)-m\(model)-s\(serial)"
+        }
+        if let displayID {
+            return "v\(vendor)-m\(model)-d\(displayID)"
+        }
+        return "v\(vendor)-m\(model)-s\(serial)"
     }
 
-    func startMonitoring(onChange: @escaping () -> Void) {
+    func startMonitoring(onChange: @escaping @Sendable () -> Void) {
         screenChangeObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
             object: nil,
@@ -42,7 +48,7 @@ class DisplayService {
             let vendor = CGDisplayVendorNumber(screenNumber)
             let model = CGDisplayModelNumber(screenNumber)
             let serial = CGDisplaySerialNumber(screenNumber)
-            let identifier = Self.makeIdentifier(vendor: vendor, model: model, serial: serial)
+            let identifier = Self.makeIdentifier(vendor: vendor, model: model, serial: serial, displayID: screenNumber)
             let name = screen.localizedName
             return DisplayInfo(
                 identifier: identifier,

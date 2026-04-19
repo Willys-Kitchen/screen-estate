@@ -274,6 +274,7 @@ struct GridTab: View {
         GeometryReader { geo in
             gridCanvas(width: geo.size.width, height: geo.size.height)
         }
+        .aspectRatio(aspectRatio, contentMode: .fit)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black.opacity(0.04))
         .clipShape(RoundedRectangle(cornerRadius: 6))

@@ -24,6 +24,8 @@ class WindowManipulationService {
             return getFocusedWindowViaWorkspace()
         }
 
+        guard let focusedApp else { return getFocusedWindowViaWorkspace() }
+        // AXUIElement is a CFTypeRef alias — force cast is safe after nil check
         let app = focusedApp as! AXUIElement
 
         var focusedWindow: AnyObject?
@@ -34,6 +36,7 @@ class WindowManipulationService {
             return getFirstWindow(of: app)
         }
 
+        guard let focusedWindow else { return nil }
         return (focusedWindow as! AXUIElement)
     }
 
@@ -55,6 +58,7 @@ class WindowManipulationService {
             return getFirstWindow(of: appElement)
         }
 
+        guard let focusedWindow else { return nil }
         return (focusedWindow as! AXUIElement)
     }
 
@@ -80,9 +84,10 @@ class WindowManipulationService {
     func getWindowPosition(_ window: AXUIElement) -> CGPoint? {
         var value: AnyObject?
         let result = AXUIElementCopyAttributeValue(window, kAXPositionAttribute as CFString, &value)
-        guard result == .success, let axValue = value else { return nil }
+        guard result == .success, let value else { return nil }
         var point = CGPoint.zero
-        AXValueGetValue(axValue as! AXValue, .cgPoint, &point)
+        // AXValue is a CFTypeRef alias — force cast is safe after nil check
+        AXValueGetValue(value as! AXValue, .cgPoint, &point)
         return point
     }
 
@@ -90,9 +95,9 @@ class WindowManipulationService {
     func getWindowSize(_ window: AXUIElement) -> CGSize? {
         var value: AnyObject?
         let result = AXUIElementCopyAttributeValue(window, kAXSizeAttribute as CFString, &value)
-        guard result == .success, let axValue = value else { return nil }
+        guard result == .success, let value else { return nil }
         var size = CGSize.zero
-        AXValueGetValue(axValue as! AXValue, .cgSize, &size)
+        AXValueGetValue(value as! AXValue, .cgSize, &size)
         return size
     }
 
