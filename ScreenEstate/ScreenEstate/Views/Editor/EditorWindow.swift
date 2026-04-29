@@ -70,11 +70,25 @@ struct EditorWindow: View {
             Divider()
 
             if selectedTab != .settings {
-                // Monitor selector
+                // Monitor selector or multi-monitor overview
                 if displays.count > 1 {
-                    MonitorSelector(displays: displays, selectedDisplayIndex: $selectedDisplayIndex)
+                    if appState.activeMode?.globalZones == true {
+                        // Global zones: show all monitors in arrangement view
+                        MultiMonitorOverview(
+                            displays: displays,
+                            mode: appState.activeMode!,
+                            accentColor: accentColor,
+                            selectedDisplayIndex: $selectedDisplayIndex
+                        )
+                        .frame(height: 240)
                         .padding(.horizontal)
                         .padding(.top, 8)
+                    } else {
+                        // Per-monitor: simple selector
+                        MonitorSelector(displays: displays, selectedDisplayIndex: $selectedDisplayIndex)
+                            .padding(.horizontal)
+                            .padding(.top, 8)
+                    }
                 }
             }
 

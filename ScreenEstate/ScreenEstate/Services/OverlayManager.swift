@@ -11,7 +11,7 @@ class OverlayManager {
     private var overlayEntries: [String: OverlayEntry] = [:]
     private var flashWindow: OverlayWindow?
 
-    func showOverlays(zones: [Zone], for displays: [DisplayInfo], activeZoneID: UUID?, accentColor: Color) {
+    func showOverlays(zones: [Zone], for displays: [DisplayInfo], activeZoneID: UUID?, accentColor: Color, globalNumbers: [UUID: Int]? = nil) {
         for display in displays {
             let screen = NSScreen.screens.first { screen in
                 guard let screenNumber = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else { return false }
@@ -32,6 +32,7 @@ class OverlayManager {
                 entry.state.zones = displayZones
                 entry.state.activeZoneID = activeZoneID
                 entry.state.accentColor = accentColor
+                entry.state.globalNumbers = globalNumbers
                 entry.window.setFrame(screen.frame, display: true)
                 entry.window.orderFront(nil)
             } else {
@@ -41,6 +42,7 @@ class OverlayManager {
                 state.zones = displayZones
                 state.activeZoneID = activeZoneID
                 state.accentColor = accentColor
+                state.globalNumbers = globalNumbers
 
                 let contentView = NSHostingView(rootView: OverlayContentView(state: state))
                 window.contentView = contentView

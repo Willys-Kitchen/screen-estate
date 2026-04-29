@@ -6,6 +6,15 @@ struct ModeManager: View {
     @State private var editingName: String = ""
     @FocusState private var isNameFieldFocused: Bool
 
+    private var globalZonesBinding: Binding<Bool> {
+        Binding(
+            get: { appState.activeMode?.globalZones ?? false },
+            set: { newValue in
+                appState.modes[appState.activeModeIndex].globalZones = newValue
+            }
+        )
+    }
+
     var body: some View {
         HStack {
             if editingModeID != nil {
@@ -55,6 +64,12 @@ struct ModeManager: View {
                 appState.activeModeIndex = max(0, appState.activeModeIndex - 1)
             }
             .disabled(appState.modes.count <= 1)
+
+            Spacer()
+
+            Toggle("Global Zones", isOn: globalZonesBinding)
+                .toggleStyle(.checkbox)
+                .help("Number zones across all monitors (1-9) instead of per-monitor")
         }
     }
 

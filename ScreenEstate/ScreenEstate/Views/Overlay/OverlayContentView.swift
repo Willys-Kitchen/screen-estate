@@ -5,10 +5,23 @@ class OverlayState {
     var zones: [Zone] = []
     var activeZoneID: UUID?
     var accentColor: Color = .blue
+    var globalNumbers: [UUID: Int]? // When set, use these numbers instead of zone.number
 }
 
 struct OverlayContentView: View {
     var state: OverlayState
+
+    private func displayNumber(for zone: Zone) -> String {
+        if let globalNumbers = state.globalNumbers {
+            // Global mode: use global number, blank if not in map (zone 10+)
+            if let num = globalNumbers[zone.id] {
+                return "\(num)"
+            }
+            return ""
+        }
+        // Per-monitor mode: use zone's own number
+        return zone.number > 0 ? "\(zone.number)" : ""
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -24,7 +37,7 @@ struct OverlayContentView: View {
                                 .stroke(isActive ? state.accentColor : Color.gray.opacity(0.4), lineWidth: isActive ? 3 : 1)
                         )
                         .overlay(
-                            Text(zone.number > 0 ? "\(zone.number)" : "")
+                            Text(displayNumber(for: zone))
                                 .font(.system(size: 48, weight: .bold))
                                 .foregroundColor(.white.opacity(0.8))
                                 .shadow(color: .black.opacity(0.5), radius: 2)
