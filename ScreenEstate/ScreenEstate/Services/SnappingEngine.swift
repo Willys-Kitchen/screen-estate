@@ -225,6 +225,29 @@ class SnappingEngine {
             NSLog("Screen Estate: No focused window")
             return
         }
+        guard appState.activeMode != nil else {
+            NSLog("Screen Estate: No active mode")
+            return
+        }
+
+        // Check if window is fullscreen — if so, exit fullscreen first and snap after animation
+        if windowService.isFullscreen(window) {
+            NSLog("Screen Estate: Window is fullscreen, exiting before snap")
+            if windowService.exitFullscreen(window) {
+                // Wait for fullscreen exit animation (~0.5s), then snap
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    self?.performSnap(window: window, toZoneNumber: number)
+                }
+                return
+            }
+            // If exit failed, try snapping anyway (might fail)
+        }
+
+        // Not fullscreen — snap immediately
+        performSnap(window: window, toZoneNumber: number)
+    }
+
+    private func performSnap(window: AXUIElement, toZoneNumber number: Int) {
         guard let mode = appState.activeMode else {
             NSLog("Screen Estate: No active mode")
             return

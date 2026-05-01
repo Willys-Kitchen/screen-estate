@@ -9,6 +9,7 @@ struct EditorWindow: View {
 
     @State private var selectedDisplayIndex: Int = 0
     @State private var selectedTab: EditorTab = .presets
+    @State private var isEditingZoneOrder: Bool = false
 
     // Dirty tracking — snapshot taken when the window appears
     @State private var savedModes: [Mode] = []
@@ -61,6 +62,87 @@ struct EditorWindow: View {
         return frame.width / frame.height
     }
 
+    @ViewBuilder
+    private var globalZonesOverviewSection: some View {
+        VStack(spacing: 0) {
+            // Multi-monitor overview - takes at least 40% of available space
+            GeometryReader { geo in
+                VStack(spacing: 12) {
+                    MultiMonitorOverview(
+                        displays: displays,
+                        mode: appState.activeMode!,
+                        accentColor: accentColor,
+                        selectedDisplayIndex: $selectedDisplayIndex,
+                        isEditing: isEditingZoneOrder,
+                        onZoneAssignment: { zoneID, number in
+                            handleZoneAssignment(zoneID: zoneID, number: number)
+                        }
+                    )
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                    // Controls bar
+                    HStack(spacing: 12) {
+                        if isEditingZoneOrder {
+                            // Edit mode: show instructions and auto-fill buttons
+                            Text("Select a zone, then press 1-9")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(.secondary)
+
+                            Spacer()
+
+                            // Auto-fill buttons with directional arrows
+                            HStack(spacing: 8) {
+                                Button {
+                                    autoFillZones(order: .leftToRight)
+                                } label: {
+                                    Label("Auto-fill", systemImage: "arrow.right")
+                                        .font(.system(size: 11, weight: .medium))
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .help("Fill remaining zones left-to-right")
+
+                                Button {
+                                    autoFillZones(order: .topToBottom)
+                                } label: {
+                                    Label("Auto-fill", systemImage: "arrow.down")
+                                        .font(.system(size: 11, weight: .medium))
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .help("Fill remaining zones top-to-bottom")
+                            }
+
+                            Button("Done") {
+                                isEditingZoneOrder = false
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                        } else {
+                            // View mode: show customize button
+                            Spacer()
+
+                            Button {
+                                isEditingZoneOrder = true
+                            } label: {
+                                Label("Customize Zone Order", systemImage: "square.grid.2x2")
+                                    .font(.system(size: 11, weight: .medium))
+                            }
+                            .buttonStyle(.bordered)
+                            .controlSize(.small)
+                        }
+                    }
+                    .padding(.horizontal, 4)
+                }
+                .frame(width: geo.size.width, height: geo.size.height)
+            }
+            .frame(minHeight: 180, maxHeight: .infinity)
+            .padding(.horizontal)
+            .padding(.top, 12)
+            .padding(.bottom, 8)
+        }
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Mode manager
@@ -71,24 +153,14 @@ struct EditorWindow: View {
 
             if selectedTab != .settings {
                 // Monitor selector or multi-monitor overview
-                if displays.count > 1 {
-                    if appState.activeMode?.globalZones == true {
-                        // Global zones: show all monitors in arrangement view
-                        MultiMonitorOverview(
-                            displays: displays,
-                            mode: appState.activeMode!,
-                            accentColor: accentColor,
-                            selectedDisplayIndex: $selectedDisplayIndex
-                        )
-                        .frame(height: 240)
+                if appState.activeMode?.globalZones == true {
+                    // Global zones: show all monitors in arrangement view (even single monitor)
+                    globalZonesOverviewSection
+                } else if displays.count > 1 {
+                    // Per-monitor: simple selector (only when multiple monitors)
+                    MonitorSelector(displays: displays, selectedDisplayIndex: $selectedDisplayIndex)
                         .padding(.horizontal)
                         .padding(.top, 8)
-                    } else {
-                        // Per-monitor: simple selector
-                        MonitorSelector(displays: displays, selectedDisplayIndex: $selectedDisplayIndex)
-                            .padding(.horizontal)
-                            .padding(.top, 8)
-                    }
                 }
             }
 
@@ -221,5 +293,37 @@ struct EditorWindow: View {
             )
             appState.modes[appState.activeModeIndex].layouts.append(newLayout)
         }
+    }
+
+    private func handleZoneAssignment(zoneID: UUID, number: Int?) {
+        // Initialize assignments if nil (switching from auto to manual mode)
+        if appState.modes[appState.activeModeIndex].globalZoneAssignments == nil {
+            appState.modes[appState.activeModeIndex].globalZoneAssignments = [:]
+        }
+
+        let zoneKey = zoneID.uuidString
+
+        if let number = number {
+            // Remove this number from any other zone first (no duplicates)
+            appState.modes[appState.activeModeIndex].globalZoneAssignments = appState.modes[appState.activeModeIndex].globalZoneAssignments?.filter { $0.value != number }
+
+            // Assign the number to this zone
+            appState.modes[appState.activeModeIndex].globalZoneAssignments?[zoneKey] = number
+        } else {
+            // Clear assignment for this zone
+            appState.modes[appState.activeModeIndex].globalZoneAssignments?.removeValue(forKey: zoneKey)
+        }
+    }
+
+    private func autoFillZones(order: GlobalZoneHelper.FillOrder) {
+        let currentAssignments = appState.modes[appState.activeModeIndex].globalZoneAssignments
+        let mode = appState.modes[appState.activeModeIndex]
+        let filledAssignments = GlobalZoneHelper.autoFillAssignments(
+            currentAssignments: currentAssignments,
+            displays: displays,
+            mode: mode,
+            order: order
+        )
+        appState.modes[appState.activeModeIndex].globalZoneAssignments = filledAssignments
     }
 }

@@ -29,24 +29,43 @@ struct GlobalZoneHelper {
         }
 
         var globalZones: [GlobalZone] = []
-        var globalIndex = 1
 
-        for display in sortedDisplays {
-            let layout = mode.layouts.first { $0.displayIdentifier == display.identifier }
-            let zones = layout?.zones ?? []
+        // Check if we have custom assignments
+        if let assignments = mode.globalZoneAssignments {
+            // Manual mode: use custom assignments, unassigned zones get nil
+            for display in sortedDisplays {
+                let layout = mode.layouts.first { $0.displayIdentifier == display.identifier }
+                let zones = layout?.zones ?? []
+                let sortedZones = zones.sorted { $0.number < $1.number }
 
-            // Zones are already in reading order (by their number property)
-            let sortedZones = zones.sorted { $0.number < $1.number }
+                for zone in sortedZones {
+                    let globalNumber = assignments[zone.id.uuidString]
+                    globalZones.append(GlobalZone(
+                        zone: zone,
+                        displayIdentifier: display.identifier,
+                        displayFrame: display.frame,
+                        globalNumber: globalNumber
+                    ))
+                }
+            }
+        } else {
+            // Automatic mode: left-to-right numbering
+            var globalIndex = 1
+            for display in sortedDisplays {
+                let layout = mode.layouts.first { $0.displayIdentifier == display.identifier }
+                let zones = layout?.zones ?? []
+                let sortedZones = zones.sorted { $0.number < $1.number }
 
-            for zone in sortedZones {
-                let globalNumber: Int? = globalIndex <= 9 ? globalIndex : nil
-                globalZones.append(GlobalZone(
-                    zone: zone,
-                    displayIdentifier: display.identifier,
-                    displayFrame: display.frame,
-                    globalNumber: globalNumber
-                ))
-                globalIndex += 1
+                for zone in sortedZones {
+                    let globalNumber: Int? = globalIndex <= 9 ? globalIndex : nil
+                    globalZones.append(GlobalZone(
+                        zone: zone,
+                        displayIdentifier: display.identifier,
+                        displayFrame: display.frame,
+                        globalNumber: globalNumber
+                    ))
+                    globalIndex += 1
+                }
             }
         }
 
@@ -84,5 +103,62 @@ struct GlobalZoneHelper {
     static func globalNumber(for zoneID: UUID, displayIdentifier: String, displays: [DisplayInfo], mode: Mode) -> Int? {
         let globalZones = computeGlobalZones(displays: displays, mode: mode)
         return globalZones.first { $0.zone.id == zoneID && $0.displayIdentifier == displayIdentifier }?.globalNumber
+    }
+
+    enum FillOrder {
+        case leftToRight
+        case topToBottom
+    }
+
+    /// Auto-fills unassigned zones with remaining numbers (1-9) in specified order.
+    /// - Parameters:
+    ///   - currentAssignments: Current manual assignments (may be nil or partial)
+    ///   - displays: Connected displays
+    ///   - mode: Current mode
+    ///   - order: Fill order - leftToRight or topToBottom
+    /// - Returns: Updated assignments with unassigned zones filled in
+    static func autoFillAssignments(currentAssignments: [String: Int]?, displays: [DisplayInfo], mode: Mode, order: FillOrder = .leftToRight) -> [String: Int] {
+        var assignments = currentAssignments ?? [:]
+
+        // Find which numbers are already used
+        let usedNumbers = Set(assignments.values)
+
+        // Find available numbers 1-9
+        var availableNumbers = (1...9).filter { !usedNumbers.contains($0) }
+
+        // Sort displays based on order
+        let sortedDisplays: [DisplayInfo]
+        switch order {
+        case .leftToRight:
+            sortedDisplays = displays.sorted { a, b in
+                if a.frame.origin.x != b.frame.origin.x {
+                    return a.frame.origin.x < b.frame.origin.x
+                }
+                return a.frame.origin.y > b.frame.origin.y // Higher Y = higher on screen in macOS
+            }
+        case .topToBottom:
+            sortedDisplays = displays.sorted { a, b in
+                if a.frame.origin.y != b.frame.origin.y {
+                    return a.frame.origin.y > b.frame.origin.y // Higher Y = higher on screen in macOS
+                }
+                return a.frame.origin.x < b.frame.origin.x
+            }
+        }
+
+        // Go through zones in order and assign available numbers to unassigned zones
+        for display in sortedDisplays {
+            let layout = mode.layouts.first { $0.displayIdentifier == display.identifier }
+            let zones = layout?.zones ?? []
+            let sortedZones = zones.sorted { $0.number < $1.number }
+
+            for zone in sortedZones {
+                let zoneKey = zone.id.uuidString
+                if assignments[zoneKey] == nil && !availableNumbers.isEmpty {
+                    assignments[zoneKey] = availableNumbers.removeFirst()
+                }
+            }
+        }
+
+        return assignments
     }
 }

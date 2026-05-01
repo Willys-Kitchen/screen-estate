@@ -7,27 +7,64 @@ struct MultiMonitorOverview: View {
     let mode: Mode
     let accentColor: Color
     @Binding var selectedDisplayIndex: Int
+    let isEditing: Bool
+    var onZoneAssignment: ((UUID, Int?) -> Void)?
+
+    @State private var selectedZoneID: UUID?
 
     var body: some View {
         GeometryReader { geo in
             let layout = computeLayout(in: geo.size)
 
             ZStack {
-                ForEach(Array(layout.monitors.enumerated()), id: \.offset) { index, monitor in
+                ForEach(Array(layout.monitors.enumerated()), id: \.element.display.identifier) { _, monitor in
                     MonitorView(
                         display: monitor.display,
                         zones: monitor.zones,
                         globalNumbers: monitor.globalNumbers,
                         frame: monitor.frame,
-                        isSelected: index == selectedDisplayIndex,
-                        accentColor: accentColor
+                        isMonitorSelected: monitor.originalIndex == selectedDisplayIndex,
+                        selectedZoneID: isEditing ? selectedZoneID : nil,
+                        accentColor: accentColor,
+                        isEditing: isEditing,
+                        onZoneTap: { zoneID in
+                            if isEditing {
+                                selectedZoneID = zoneID
+                            }
+                            selectedDisplayIndex = monitor.originalIndex
+                        },
+                        onMonitorTap: {
+                            selectedDisplayIndex = monitor.originalIndex
+                            if !isEditing {
+                                selectedZoneID = nil
+                            }
+                        }
                     )
-                    .onTapGesture {
-                        selectedDisplayIndex = index
-                    }
                 }
             }
             .frame(width: geo.size.width, height: geo.size.height)
+        }
+        .onKeyPress { press in
+            guard isEditing, let zoneID = selectedZoneID else { return .ignored }
+
+            // Handle number keys 1-9
+            if let char = press.characters.first, let num = Int(String(char)), num >= 1 && num <= 9 {
+                onZoneAssignment?(zoneID, num)
+                return .handled
+            }
+
+            // Handle Delete/Backspace to clear assignment
+            if press.key == .delete {
+                onZoneAssignment?(zoneID, nil)
+                return .handled
+            }
+
+            return .ignored
+        }
+        .onChange(of: isEditing) { _, newValue in
+            if !newValue {
+                selectedZoneID = nil
+            }
         }
     }
 
@@ -36,6 +73,7 @@ struct MultiMonitorOverview: View {
         let zones: [Zone]
         let globalNumbers: [UUID: Int]
         let frame: CGRect // Scaled frame within the view
+        let originalIndex: Int // Index in the original unsorted displays array
     }
 
     private struct ComputedLayout {
@@ -102,11 +140,15 @@ struct MultiMonitorOverview: View {
                 .compactMap { gz in gz.globalNumber.map { (gz.zone.id, $0) } }
             )
 
+            // Find the original index in the unsorted displays array
+            let originalIndex = displays.firstIndex { $0.identifier == display.identifier } ?? 0
+
             monitors.append(MonitorLayoutInfo(
                 display: display,
                 zones: zones,
                 globalNumbers: globalNumbers,
-                frame: scaledFrame
+                frame: scaledFrame,
+                originalIndex: originalIndex
             ))
 
             // Update selected index to match sorted order
@@ -124,61 +166,118 @@ private struct MonitorView: View {
     let zones: [Zone]
     let globalNumbers: [UUID: Int]
     let frame: CGRect
-    let isSelected: Bool
+    let isMonitorSelected: Bool
+    let selectedZoneID: UUID?
     let accentColor: Color
+    let isEditing: Bool
+    let onZoneTap: (UUID) -> Void
+    let onMonitorTap: () -> Void
 
     var body: some View {
         ZStack {
-            // Monitor background
-            RoundedRectangle(cornerRadius: 4)
+            // Monitor background - tappable to select monitor
+            RoundedRectangle(cornerRadius: 6)
                 .fill(Color(nsColor: .controlBackgroundColor))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .stroke(isSelected ? accentColor : Color.gray.opacity(0.5), lineWidth: isSelected ? 2 : 1)
+                    RoundedRectangle(cornerRadius: 6)
+                        .stroke(isMonitorSelected ? accentColor : Color.gray.opacity(0.4), lineWidth: isMonitorSelected ? 2 : 1)
                 )
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onMonitorTap()
+                }
 
-            // Zones
-            GeometryReader { _ in
+            // Zones layer - on top of monitor background
+            ZStack {
                 ForEach(zones) { zone in
-                    let zoneFrame = CGRect(
-                        x: zone.proportionalFrame.origin.x * frame.width,
-                        y: zone.proportionalFrame.origin.y * frame.height,
-                        width: zone.proportionalFrame.width * frame.width,
-                        height: zone.proportionalFrame.height * frame.height
-                    )
-
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(accentColor.opacity(0.2))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 2)
-                                    .stroke(accentColor.opacity(0.5), lineWidth: 1)
-                            )
-
-                        if let num = globalNumbers[zone.id] {
-                            Text("\(num)")
-                                .font(.system(size: min(zoneFrame.width, zoneFrame.height) * 0.4, weight: .bold))
-                                .foregroundColor(accentColor)
+                    ZoneView(
+                        zone: zone,
+                        globalNumber: globalNumbers[zone.id],
+                        containerFrame: frame,
+                        isSelected: zone.id == selectedZoneID,
+                        accentColor: accentColor,
+                        isEditing: isEditing,
+                        onTap: {
+                            onZoneTap(zone.id)
                         }
-                    }
-                    .frame(width: zoneFrame.width - 2, height: zoneFrame.height - 2)
-                    .position(
-                        x: zoneFrame.origin.x + zoneFrame.width / 2,
-                        y: zoneFrame.origin.y + zoneFrame.height / 2
                     )
                 }
             }
+            .frame(width: frame.width, height: frame.height)
 
-            // Monitor name
+            // Monitor name at bottom
             VStack {
                 Spacer()
                 Text(display.name)
-                    .font(.caption2)
+                    .font(.system(size: 9, weight: .medium))
                     .foregroundColor(.secondary)
-                    .padding(.bottom, 2)
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .background(Color(nsColor: .controlBackgroundColor).opacity(0.8))
+                    .cornerRadius(3)
+                    .padding(.bottom, 4)
             }
+            .allowsHitTesting(false)
         }
         .frame(width: frame.width, height: frame.height)
         .position(x: frame.midX, y: frame.midY)
+    }
+}
+
+private struct ZoneView: View {
+    let zone: Zone
+    let globalNumber: Int?
+    let containerFrame: CGRect
+    let isSelected: Bool
+    let accentColor: Color
+    let isEditing: Bool
+    let onTap: () -> Void
+
+    private var zoneFrame: CGRect {
+        CGRect(
+            x: zone.proportionalFrame.origin.x * containerFrame.width,
+            y: zone.proportionalFrame.origin.y * containerFrame.height,
+            width: zone.proportionalFrame.width * containerFrame.width,
+            height: zone.proportionalFrame.height * containerFrame.height
+        )
+    }
+
+    private var fontSize: CGFloat {
+        min(zoneFrame.width, zoneFrame.height) * 0.35
+    }
+
+    var body: some View {
+        ZStack {
+            // Zone background
+            RoundedRectangle(cornerRadius: 3)
+                .fill(isSelected ? accentColor.opacity(0.35) : accentColor.opacity(0.15))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 3)
+                        .strokeBorder(
+                            isSelected ? accentColor : accentColor.opacity(0.4),
+                            lineWidth: isSelected ? 2 : 1
+                        )
+                )
+
+            // Zone number or placeholder
+            if let num = globalNumber {
+                Text("\(num)")
+                    .font(.system(size: fontSize, weight: .bold, design: .rounded))
+                    .foregroundColor(accentColor)
+            } else if isSelected && isEditing {
+                Text("?")
+                    .font(.system(size: fontSize, weight: .bold, design: .rounded))
+                    .foregroundColor(accentColor.opacity(0.5))
+            }
+        }
+        .frame(width: max(zoneFrame.width - 3, 1), height: max(zoneFrame.height - 3, 1))
+        .position(
+            x: zoneFrame.origin.x + zoneFrame.width / 2,
+            y: zoneFrame.origin.y + zoneFrame.height / 2
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            onTap()
+        }
     }
 }

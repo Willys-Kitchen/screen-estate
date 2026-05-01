@@ -108,6 +108,32 @@ class WindowManipulationService {
         return result == .success
     }
 
+    /// Check if a window is in fullscreen mode.
+    func isFullscreen(_ window: AXUIElement) -> Bool {
+        var value: AnyObject?
+        // Try the standard AXFullScreen attribute
+        let result = AXUIElementCopyAttributeValue(window, "AXFullScreen" as CFString, &value)
+        if result == .success, let isFullscreen = value as? Bool {
+            return isFullscreen
+        }
+        return false
+    }
+
+    /// Exit fullscreen mode for a window. Returns true if the window was fullscreen and we initiated exit.
+    func exitFullscreen(_ window: AXUIElement) -> Bool {
+        guard isFullscreen(window) else { return false }
+
+        // Set AXFullScreen to false to exit fullscreen
+        let result = AXUIElementSetAttributeValue(window, "AXFullScreen" as CFString, kCFBooleanFalse)
+        if result == .success {
+            NSLog("Screen Estate [AX]: Initiated fullscreen exit")
+            return true
+        } else {
+            NSLog("Screen Estate [AX]: Failed to exit fullscreen: \(describeAXError(result))")
+            return false
+        }
+    }
+
     /// Move and resize a window to the given frame in Accessibility coordinates (top-left origin).
     /// Returns `true` if both position and size were set successfully.
     @discardableResult
@@ -126,8 +152,9 @@ class WindowManipulationService {
 
         var success = true
 
-        // Set position first, then size — setting position before size avoids
-        // the window being clipped by the display edge at its old size.
+        // Set position first, let macOS process it, then set size.
+        // This works around a macOS quirk where cross-monitor moves need a moment
+        // before size changes are applied relative to the new screen.
         var position = frame.origin
         if let posValue = AXValueCreate(.cgPoint, &position) {
             let posResult = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, posValue)
@@ -138,6 +165,9 @@ class WindowManipulationService {
         } else {
             success = false
         }
+
+        // Brief RunLoop spin to let macOS process the position change
+        CFRunLoopRunInMode(.defaultMode, 0.02, false)
 
         var size = frame.size
         if let sizeValue = AXValueCreate(.cgSize, &size) {
