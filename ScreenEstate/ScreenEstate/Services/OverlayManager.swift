@@ -33,7 +33,7 @@ class OverlayManager {
                 entry.state.activeZoneID = activeZoneID
                 entry.state.accentColor = accentColor
                 entry.state.globalNumbers = globalNumbers
-                entry.window.setFrame(screen.frame, display: true)
+                entry.window.setFrame(screen.visibleFrame, display: true)
                 entry.window.orderFront(nil)
             } else {
                 // Create new window with hosting view
@@ -46,7 +46,7 @@ class OverlayManager {
 
                 let contentView = NSHostingView(rootView: OverlayContentView(state: state))
                 window.contentView = contentView
-                window.setFrame(screen.frame, display: true)
+                window.setFrame(screen.visibleFrame, display: true)
                 window.orderFront(nil)
 
                 overlayEntries[display.identifier] = OverlayEntry(window: window, state: state)
@@ -72,7 +72,7 @@ class OverlayManager {
     func flashModeName(_ name: String, on screen: NSScreen) {
         let window = OverlayWindow(for: screen)
         window.contentView = NSHostingView(rootView: ModeFlashView(modeName: name))
-        window.setFrame(screen.frame, display: true)
+        window.setFrame(screen.visibleFrame, display: true)
         window.orderFront(nil)
         flashWindow = window
 

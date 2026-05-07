@@ -3,7 +3,7 @@ import AppKit
 class OverlayWindow: NSWindow {
     init(for screen: NSScreen) {
         super.init(
-            contentRect: screen.frame,
+            contentRect: screen.visibleFrame,
             styleMask: .borderless,
             backing: .buffered,
             defer: false
@@ -14,6 +14,6 @@ class OverlayWindow: NSWindow {
         self.ignoresMouseEvents = true
         self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
         self.hasShadow = false
-        self.setFrame(screen.frame, display: false)
+        self.setFrame(screen.visibleFrame, display: false)
     }
 }
