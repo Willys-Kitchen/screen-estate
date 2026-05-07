@@ -111,6 +111,16 @@ struct EditorWindow: View {
                                 .buttonStyle(.bordered)
                                 .controlSize(.small)
                                 .help("Fill remaining zones top-to-bottom")
+
+                                Button {
+                                    clearZoneAssignments()
+                                } label: {
+                                    Label("Clear", systemImage: "xmark.circle")
+                                        .font(.system(size: 11, weight: .medium))
+                                }
+                                .buttonStyle(.bordered)
+                                .controlSize(.small)
+                                .help("Clear all zone number assignments")
                             }
 
                             Button("Done") {
@@ -325,5 +335,9 @@ struct EditorWindow: View {
             order: order
         )
         appState.modes[appState.activeModeIndex].globalZoneAssignments = filledAssignments
+    }
+
+    private func clearZoneAssignments() {
+        appState.modes[appState.activeModeIndex].globalZoneAssignments = [:]
     }
 }

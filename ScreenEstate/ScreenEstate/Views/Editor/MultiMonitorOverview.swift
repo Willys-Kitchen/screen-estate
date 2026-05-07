@@ -44,6 +44,7 @@ struct MultiMonitorOverview: View {
             }
             .frame(width: geo.size.width, height: geo.size.height)
         }
+        .focusable(isEditing)
         .onKeyPress { press in
             guard isEditing, let zoneID = selectedZoneID else { return .ignored }
 
@@ -247,37 +248,36 @@ private struct ZoneView: View {
     }
 
     var body: some View {
-        ZStack {
-            // Zone background
-            RoundedRectangle(cornerRadius: 3)
-                .fill(isSelected ? accentColor.opacity(0.35) : accentColor.opacity(0.15))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 3)
-                        .strokeBorder(
-                            isSelected ? accentColor : accentColor.opacity(0.4),
-                            lineWidth: isSelected ? 2 : 1
-                        )
-                )
+        Button(action: onTap) {
+            ZStack {
+                // Zone background
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(isSelected ? accentColor.opacity(0.35) : accentColor.opacity(0.15))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 3)
+                            .strokeBorder(
+                                isSelected ? accentColor : accentColor.opacity(0.4),
+                                lineWidth: isSelected ? 2 : 1
+                            )
+                    )
 
-            // Zone number or placeholder
-            if let num = globalNumber {
-                Text("\(num)")
-                    .font(.system(size: fontSize, weight: .bold, design: .rounded))
-                    .foregroundColor(accentColor)
-            } else if isSelected && isEditing {
-                Text("?")
-                    .font(.system(size: fontSize, weight: .bold, design: .rounded))
-                    .foregroundColor(accentColor.opacity(0.5))
+                // Zone number or placeholder
+                if let num = globalNumber {
+                    Text("\(num)")
+                        .font(.system(size: fontSize, weight: .bold, design: .rounded))
+                        .foregroundColor(accentColor)
+                } else if isSelected && isEditing {
+                    Text("?")
+                        .font(.system(size: fontSize, weight: .bold, design: .rounded))
+                        .foregroundColor(accentColor.opacity(0.5))
+                }
             }
         }
+        .buttonStyle(.plain)
         .frame(width: max(zoneFrame.width - 3, 1), height: max(zoneFrame.height - 3, 1))
         .position(
             x: zoneFrame.origin.x + zoneFrame.width / 2,
             y: zoneFrame.origin.y + zoneFrame.height / 2
         )
-        .contentShape(Rectangle())
-        .onTapGesture {
-            onTap()
-        }
     }
 }
