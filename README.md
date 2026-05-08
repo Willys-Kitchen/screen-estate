@@ -2,7 +2,7 @@
 
 Screen Estate is an app to help you manage your screen real estate for free. It's a macOS window snapping utility app, similar to [FancyZones](https://learn.microsoft.com/en-us/windows/powertoys/fancyzones) on Windows.
 
-Hold **Shift** while dragging a window and your defined zones appear on screen. Drag into one and the window resizes to fill it. Alternatively, press **⌃⌥ + 1–9** to snap the focused window directly to a numbered zone. Zones are configured per display and saved per mode, so you can have different layouts for different workflows.
+Hold **Shift** while dragging a window and your defined zones appear on screen. Drag into one and the window resizes to fill it. Alternatively, press your designated modifier keys **+ 1–9** to snap the focused window directly to a numbered zone. Zones are configured globally and saved per mode, so you can have different layouts for different workflows.
 
 ## Features
 
@@ -11,7 +11,7 @@ Hold **Shift** while dragging a window and your defined zones appear on screen. 
 - **Preset layouts** — halves, thirds, two-thirds/one-third, quadrants (portrait-aware)
 - **Custom grid editor** — merge and split cells to build your own layout
 - **Multiple modes** — save different zone setups and switch between them
-- **Multi-monitor** — configure zones per display independently
+- **Multi-monitor** — configure zones across your whole set up
 - **Customizable** — pick your modifier key (⌃⌥⇧⌘), accent color, and toggle drag-snap separately
 
 ## Requirements
