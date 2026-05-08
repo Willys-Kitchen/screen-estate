@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		1639A31397F84DC69A49986F /* GlobalZoneHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D41DBE84C1C4A83A9F4C5E8 /* GlobalZoneHelper.swift */; };
 		E4A1AF9D6DCB4B8C9E5B0791 /* MultiMonitorOverview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63B13C09B4F647BFB01231CF /* MultiMonitorOverview.swift */; };
+		DSGN5Y5T3M1F8N2K4B7C9A0E /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = DSGN1A2B3C4D5E6F7G8H9I0J /* DesignSystem.swift */; };
 		020EF6D827F2BEFC1B4DCAB3 /* PersistenceServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AAB013F605B9B4E3A3B605E /* PersistenceServiceTests.swift */; };
 		0BF651063BA136279EE8850B /* GridTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 302F58795CCCE0BEC492DB99 /* GridTab.swift */; };
 		1057787BE46FAA9FDFCDEF56 /* PresetsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = E722DAEC67D84EE0D413C4C2 /* PresetsTab.swift */; };
@@ -60,6 +61,7 @@
 /* Begin PBXFileReference section */
 		0D41DBE84C1C4A83A9F4C5E8 /* GlobalZoneHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalZoneHelper.swift; sourceTree = "<group>"; };
 		63B13C09B4F647BFB01231CF /* MultiMonitorOverview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiMonitorOverview.swift; sourceTree = "<group>"; };
+		DSGN1A2B3C4D5E6F7G8H9I0J /* DesignSystem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DesignSystem.swift; sourceTree = "<group>"; };
 		00397890F4B10A6F517132CE /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		0EA49B229EB7AEFC10352576 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		1182B1330F09E9E8973F156C /* MonitorLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MonitorLayoutTests.swift; sourceTree = "<group>"; };
@@ -143,6 +145,7 @@
 		5ABB9E0952A5560CD7E26518 /* Editor */ = {
 			isa = PBXGroup;
 			children = (
+				DSGN1A2B3C4D5E6F7G8H9I0J /* DesignSystem.swift */,
 				F202A5A744FA04597D038735 /* EditorWindow.swift */,
 				D953ECC1B46D0E877641023F /* GridCell.swift */,
 				302F58795CCCE0BEC492DB99 /* GridTab.swift */,
@@ -339,6 +342,7 @@
 				1C878CF25C0B0B29A7794AE6 /* AppSettings.swift in Sources */,
 				D2BBC118C3C0933A0C91B1BB /* AppState.swift in Sources */,
 				D24F1C60C0A5CAC7AD1A81D4 /* CoordinateConverter.swift in Sources */,
+				DSGN5Y5T3M1F8N2K4B7C9A0E /* DesignSystem.swift in Sources */,
 				4492EB0E4A7EF9D268E96546 /* DisplayService.swift in Sources */,
 				B00EB6C335E31F28A7235687 /* EditorWindow.swift in Sources */,
 				1639A31397F84DC69A49986F /* GlobalZoneHelper.swift in Sources */,

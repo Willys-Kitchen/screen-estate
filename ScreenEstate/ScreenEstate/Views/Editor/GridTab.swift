@@ -151,13 +151,12 @@ struct GridTab: View {
     // MARK: - Body
 
     var body: some View {
-        VStack(alignment: .center, spacing: 14) {
+        VStack(alignment: .center, spacing: DesignTokens.space4) {
             // Dimension controls
-            HStack(spacing: 20) {
-                Text("Custom grid layout")
-                    .font(.headline)
+            HStack(spacing: DesignTokens.space5) {
+                SectionHeader("Custom grid layout")
                 Spacer()
-                HStack(spacing: 12) {
+                HStack(spacing: DesignTokens.space4) {
                     dimensionStepper(label: "Rows", value: Binding(
                         get: { grid.rows },
                         set: { v in
@@ -194,69 +193,91 @@ struct GridTab: View {
 
             // Error banner
             if let errorMsg = mergeErrorMessage {
-                HStack(spacing: 6) {
+                HStack(spacing: DesignTokens.space2) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundColor(.red).font(.caption)
-                    Text(errorMsg).font(.caption).foregroundColor(.red)
+                        .foregroundColor(.red)
+                        .font(.system(size: 11, weight: .medium))
+                    Text(errorMsg)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.red)
                 }
-                .padding(.horizontal, 10).padding(.vertical, 6)
-                .background(Color.red.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .padding(.horizontal, DesignTokens.space3)
+                .padding(.vertical, DesignTokens.space2)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignTokens.radiusSmall)
+                        .fill(Color.red.opacity(0.1))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignTokens.radiusSmall)
+                                .strokeBorder(Color.red.opacity(0.2), lineWidth: DesignTokens.borderThin)
+                        )
+                )
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
             // Dimension limit error banner
             if let dimError = dimensionErrorMessage {
-                HStack(spacing: 6) {
+                HStack(spacing: DesignTokens.space2) {
                     Image(systemName: "hand.raised.fill")
-                        .foregroundColor(.orange).font(.caption)
-                    Text(dimError).font(.caption).foregroundColor(.orange)
+                        .foregroundColor(.orange)
+                        .font(.system(size: 11, weight: .medium))
+                    Text(dimError)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.orange)
                 }
-                .padding(.horizontal, 10).padding(.vertical, 6)
-                .background(Color.orange.opacity(0.08))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .padding(.horizontal, DesignTokens.space3)
+                .padding(.vertical, DesignTokens.space2)
+                .background(
+                    RoundedRectangle(cornerRadius: DesignTokens.radiusSmall)
+                        .fill(Color.orange.opacity(0.1))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: DesignTokens.radiusSmall)
+                                .strokeBorder(Color.orange.opacity(0.2), lineWidth: DesignTokens.borderThin)
+                        )
+                )
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
             // Action bar
-            HStack(spacing: 8) {
+            HStack(spacing: DesignTokens.space3) {
                 Button(action: performMerge) {
                     Label("Merge Cells", systemImage: "square.grid.2x2")
-                        .font(.system(size: 12, weight: .semibold))
                 }
-                .buttonStyle(MergeButtonStyle(isActive: selectedRange != nil,
-                                              isError: selectionIsInvalid,
-                                              flash: mergeErrorFlash))
+                .buttonStyle(RefinedMergeButtonStyle(
+                    isActive: selectedRange != nil,
+                    isError: selectionIsInvalid,
+                    flash: mergeErrorFlash,
+                    accentColor: accentColor
+                ))
                 .disabled(selectedRange == nil)
 
                 if selectionStart != nil {
                     Button("Cancel") { clearSelection() }
-                        .buttonStyle(.plain).font(.caption).foregroundColor(.secondary)
+                        .buttonStyle(PillButtonStyle(variant: .ghost, accentColor: accentColor))
                 }
 
                 Spacer()
 
-                Button(action: undo) {
-                    Label("Revert", systemImage: "arrow.uturn.backward").font(.caption)
-                }
-                .buttonStyle(.plain)
-                .foregroundColor(history.isEmpty ? Color.secondary.opacity(0.4) : .secondary)
-                .disabled(history.isEmpty)
+                HStack(spacing: DesignTokens.space2) {
+                    Button {
+                        undo()
+                    } label: {
+                        Label("Revert", systemImage: "arrow.uturn.backward")
+                    }
+                    .buttonStyle(PillButtonStyle(variant: .ghost, accentColor: accentColor, isDisabled: history.isEmpty))
+                    .disabled(history.isEmpty)
 
-                Button("Reset Grid") {
-                    pushHistory()
-                    grid = GridEditor(rows: grid.rows, columns: grid.columns)
-                    clearSelection(); zones = grid.toZones()
+                    Button("Reset Grid") {
+                        pushHistory()
+                        grid = GridEditor(rows: grid.rows, columns: grid.columns)
+                        clearSelection(); zones = grid.toZones()
+                    }
+                    .buttonStyle(PillButtonStyle(variant: .ghost, accentColor: accentColor))
                 }
-                .buttonStyle(.plain).font(.caption).foregroundColor(.secondary)
             }
 
             selectionHint
         }
         .padding()
-        .animation(.easeInOut(duration: 0.18), value: mergeErrorMessage != nil)
-        .animation(.easeInOut(duration: 0.18), value: dimensionErrorMessage != nil)
-        .animation(.easeInOut(duration: 0.12), value: selectionStart != nil)
         .onAppear {
             // Only initialize zones from the grid if no zones exist yet.
             // All grid mutations (merge, split, undo, reset, dimension changes)
@@ -276,9 +297,16 @@ struct GridTab: View {
         }
         .aspectRatio(aspectRatio, contentMode: .fit)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black.opacity(0.04))
-        .clipShape(RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(Color.gray.opacity(0.2), lineWidth: 1))
+        .background(
+            RoundedRectangle(cornerRadius: DesignTokens.radiusMedium)
+                .fill(AppColors.backgroundBase)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: DesignTokens.radiusMedium))
+        .overlay(
+            RoundedRectangle(cornerRadius: DesignTokens.radiusMedium)
+                .strokeBorder(AppColors.borderSubtle, lineWidth: DesignTokens.borderThin)
+        )
+        .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
     }
 
     @ViewBuilder
@@ -305,13 +333,25 @@ struct GridTab: View {
             let h = CGFloat(b.maxRow - b.minRow + 1) * cellH - gap
             let num = zoneNumber(forGroup: groupID)
 
-            RoundedRectangle(cornerRadius: 5)
-                .fill(Color.gray.opacity(0.12))
-                .overlay(RoundedRectangle(cornerRadius: 5).stroke(Color.gray.opacity(0.4), lineWidth: 1))
+            RoundedRectangle(cornerRadius: DesignTokens.radiusSmall)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            AppColors.backgroundSurface,
+                            AppColors.backgroundElevated
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: DesignTokens.radiusSmall)
+                        .strokeBorder(AppColors.borderMedium, lineWidth: DesignTokens.borderThin)
+                )
                 .overlay(
                     Text(num > 0 ? "\(num)" : "")
-                        .font(.system(size: min(w, h) * 0.28, weight: .semibold))
-                        .foregroundColor(.secondary)
+                        .font(.system(size: min(w, h) * 0.28, weight: .bold, design: .rounded))
+                        .foregroundColor(AppColors.textSecondary)
                 )
                 .frame(width: w, height: h)
                 .position(x: x + w / 2, y: y + h / 2)
@@ -401,10 +441,20 @@ struct GridTab: View {
 
     private var selectionHint: some View {
         let info = hintInfo
-        return HStack(spacing: 6) {
-            Image(systemName: info.icon).font(.caption).foregroundColor(info.color)
-            Text(info.text).font(.caption).foregroundColor(info.color)
+        return HStack(spacing: DesignTokens.space2) {
+            Image(systemName: info.icon)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(info.color)
+            Text(info.text)
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(info.color)
         }
+        .padding(.horizontal, DesignTokens.space3)
+        .padding(.vertical, DesignTokens.space2)
+        .background(
+            Capsule()
+                .fill(info.color.opacity(0.08))
+        )
     }
 
     @ViewBuilder
@@ -416,40 +466,66 @@ struct GridTab: View {
     }
 }
 
-// MARK: - Merge Button Style
+// MARK: - Refined Merge Button Style
 
-struct MergeButtonStyle: ButtonStyle {
+struct RefinedMergeButtonStyle: ButtonStyle {
     let isActive: Bool
     let isError: Bool
     let flash: Bool
+    let accentColor: Color
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .padding(.horizontal, 12).padding(.vertical, 6)
-            .background(background(pressed: configuration.isPressed))
+            .font(.system(size: 11, weight: .semibold))
+            .padding(.horizontal, DesignTokens.space3)
+            .padding(.vertical, DesignTokens.space2)
+            .background(
+                Capsule()
+                    .fill(background(pressed: configuration.isPressed))
+            )
             .foregroundColor(foreground)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-            .overlay(RoundedRectangle(cornerRadius: 6).stroke(borderColor, lineWidth: 1))
-            .opacity(isActive ? 1 : 0.45)
+            .overlay(
+                Capsule()
+                    .strokeBorder(borderColor, lineWidth: DesignTokens.borderThin)
+            )
+            .opacity(isActive ? 1 : 0.4)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
-            .animation(.easeInOut(duration: 0.08), value: configuration.isPressed)
+            .shadow(
+                color: isActive && !isError ? accentColor.opacity(0.25) : .clear,
+                radius: 4,
+                y: 1
+            )
+            .animation(.easeOut(duration: DesignTokens.durationFast), value: configuration.isPressed)
     }
 
-    private func background(pressed: Bool) -> Color {
-        if !isActive { return Color.gray.opacity(0.12) }
-        if isError || flash { return Color.red.opacity(pressed ? 0.3 : 0.15) }
-        return Color.accentColor.opacity(pressed ? 0.35 : 0.18)
+    private func background(pressed: Bool) -> some ShapeStyle {
+        if !isActive {
+            return AnyShapeStyle(Color.white.opacity(0.06))
+        }
+        if isError || flash {
+            return AnyShapeStyle(Color.red.opacity(pressed ? 0.25 : 0.15))
+        }
+        return AnyShapeStyle(
+            LinearGradient(
+                colors: [
+                    accentColor.opacity(pressed ? 0.35 : 0.25),
+                    accentColor.opacity(pressed ? 0.25 : 0.15)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+        )
     }
 
     private var foreground: Color {
-        if !isActive { return .secondary }
+        if !isActive { return AppColors.textTertiary }
         if isError || flash { return .red }
-        return .accentColor
+        return accentColor
     }
 
     private var borderColor: Color {
-        if !isActive { return Color.gray.opacity(0.25) }
-        if isError || flash { return Color.red.opacity(0.5) }
-        return Color.accentColor.opacity(0.5)
+        if !isActive { return AppColors.borderSubtle }
+        if isError || flash { return Color.red.opacity(0.4) }
+        return accentColor.opacity(0.4)
     }
 }

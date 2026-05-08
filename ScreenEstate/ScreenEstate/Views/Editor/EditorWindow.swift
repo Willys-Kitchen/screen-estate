@@ -62,209 +62,270 @@ struct EditorWindow: View {
         return frame.width / frame.height
     }
 
+    // MARK: - Split Preview Section
+    private var currentDisplayName: String {
+        guard selectedDisplayIndex < displays.count else { return "Unknown" }
+        return displays[selectedDisplayIndex].name
+    }
+
     @ViewBuilder
-    private var globalZonesOverviewSection: some View {
-        VStack(spacing: 0) {
-            // Multi-monitor overview - takes at least 40% of available space
-            GeometryReader { geo in
-                VStack(spacing: 12) {
-                    MultiMonitorOverview(
-                        displays: displays,
-                        mode: appState.activeMode!,
-                        accentColor: accentColor,
-                        selectedDisplayIndex: $selectedDisplayIndex,
-                        isEditing: isEditingZoneOrder,
-                        onZoneAssignment: { zoneID, number in
-                            handleZoneAssignment(zoneID: zoneID, number: number)
-                        }
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                    // Controls bar
-                    HStack(spacing: 12) {
-                        if isEditingZoneOrder {
-                            // Edit mode: show instructions and auto-fill buttons
-                            Text("Select a zone, then press 1-9")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.secondary)
-
-                            Spacer()
-
-                            // Auto-fill buttons with directional arrows
-                            HStack(spacing: 8) {
-                                Button {
-                                    autoFillZones(order: .leftToRight)
-                                } label: {
-                                    Label("Auto-fill", systemImage: "arrow.right")
-                                        .font(.system(size: 11, weight: .medium))
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                                .help("Fill remaining zones left-to-right")
-
-                                Button {
-                                    autoFillZones(order: .topToBottom)
-                                } label: {
-                                    Label("Auto-fill", systemImage: "arrow.down")
-                                        .font(.system(size: 11, weight: .medium))
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                                .help("Fill remaining zones top-to-bottom")
-
-                                Button {
-                                    clearZoneAssignments()
-                                } label: {
-                                    Label("Clear", systemImage: "xmark.circle")
-                                        .font(.system(size: 11, weight: .medium))
-                                }
-                                .buttonStyle(.bordered)
-                                .controlSize(.small)
-                                .help("Clear all zone number assignments")
-                            }
-
-                            Button("Done") {
-                                isEditingZoneOrder = false
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.small)
-                        } else {
-                            // View mode: show customize button
-                            Spacer()
-
-                            Button {
-                                isEditingZoneOrder = true
-                            } label: {
-                                Label("Customize Zone Order", systemImage: "square.grid.2x2")
-                                    .font(.system(size: 11, weight: .medium))
-                            }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
-                        }
+    private func splitPreviewSection(height: CGFloat) -> some View {
+        let previewBoxHeight = max(100, height - 80) // Account for headers and controls
+        VStack(spacing: DesignTokens.space2) {
+            // Header with unsaved indicator
+            HStack(spacing: DesignTokens.space2) {
+                Spacer()
+                if hasChanges {
+                    HStack(spacing: DesignTokens.space1) {
+                        Circle()
+                            .fill(Color.orange)
+                            .frame(width: 6, height: 6)
+                        Text("Unsaved")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(.orange)
                     }
-                    .padding(.horizontal, 4)
+                    .padding(.horizontal, DesignTokens.space2)
+                    .padding(.vertical, 2)
+                    .background(
+                        Capsule()
+                            .fill(Color.orange.opacity(0.12))
+                    )
                 }
-                .frame(width: geo.size.width, height: geo.size.height)
             }
-            .frame(minHeight: 180, maxHeight: .infinity)
-            .padding(.horizontal)
-            .padding(.top, 12)
-            .padding(.bottom, 8)
+            .padding(.horizontal, DesignTokens.space4)
+
+            // Split preview: Left = Current Monitor, Right = All Monitors
+            HStack(alignment: .top, spacing: DesignTokens.space3) {
+                // Left panel: Current monitor detail
+                VStack(alignment: .leading, spacing: DesignTokens.space2) {
+                    // Header row with label and monitor picker - fixed height
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Typography.label("Current Monitor")
+                            // Monitor picker dropdown
+                            Menu {
+                                ForEach(Array(displays.enumerated()), id: \.element.identifier) { index, display in
+                                    Button {
+                                        selectedDisplayIndex = index
+                                    } label: {
+                                        HStack {
+                                            Text(display.name)
+                                            if index == selectedDisplayIndex {
+                                                Image(systemName: "checkmark")
+                                            }
+                                        }
+                                    }
+                                }
+                            } label: {
+                                Text(currentDisplayName)
+                                    .font(.system(size: 11, weight: .medium))
+                                    .foregroundColor(AppColors.textSecondary)
+                            }
+                            .menuStyle(.borderlessButton)
+                            .fixedSize()
+                        }
+                        Spacer()
+                    }
+                    .frame(height: 36) // Fixed header height to match right panel
+
+                    // Zone preview container
+                    ZStack {
+                        RoundedRectangle(cornerRadius: DesignTokens.radiusMedium)
+                            .fill(AppColors.backgroundElevated)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DesignTokens.radiusMedium)
+                                    .strokeBorder(AppColors.borderSubtle, lineWidth: DesignTokens.borderThin)
+                            )
+
+                        ZonePreview(
+                            zones: currentZonesBinding.wrappedValue,
+                            accentColor: accentColor,
+                            aspectRatio: currentDisplayAspectRatio
+                        )
+                        .padding(DesignTokens.space3)
+                    }
+                    .frame(height: previewBoxHeight)
+                }
+                .frame(maxWidth: .infinity)
+
+                // Right panel: All monitors with zone numbers
+                VStack(alignment: .leading, spacing: DesignTokens.space2) {
+                    // Header row - same fixed height as left panel
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Typography.label("All Monitors")
+                            Text("Click monitor to select")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(AppColors.textSecondary)
+                        }
+                        Spacer()
+                        Button {
+                            isEditingZoneOrder.toggle()
+                        } label: {
+                            HStack(spacing: DesignTokens.space1) {
+                                Image(systemName: isEditingZoneOrder ? "checkmark" : "pencil")
+                                    .font(.system(size: 10, weight: .medium))
+                                Text(isEditingZoneOrder ? "Done" : "Zone Order")
+                                    .font(.system(size: 10, weight: .medium))
+                            }
+                        }
+                        .buttonStyle(PillButtonStyle(
+                            variant: isEditingZoneOrder ? .primary : .secondary,
+                            accentColor: accentColor
+                        ))
+                        .help(isEditingZoneOrder ? "Done editing zone numbers" : "Edit zone numbers")
+                    }
+                    .frame(height: 36) // Fixed header height
+
+                    // Multi-monitor overview container
+                    ZStack {
+                        RoundedRectangle(cornerRadius: DesignTokens.radiusMedium)
+                            .fill(AppColors.backgroundElevated)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: DesignTokens.radiusMedium)
+                                    .strokeBorder(
+                                        isEditingZoneOrder ? accentColor.opacity(0.4) : AppColors.borderSubtle,
+                                        lineWidth: DesignTokens.borderThin
+                                    )
+                            )
+
+                        MultiMonitorOverview(
+                            displays: displays,
+                            mode: appState.activeMode!,
+                            accentColor: accentColor,
+                            selectedDisplayIndex: $selectedDisplayIndex,
+                            isEditing: isEditingZoneOrder,
+                            onZoneAssignment: { zoneID, number in
+                                handleZoneAssignment(zoneID: zoneID, number: number)
+                            }
+                        )
+                    }
+                    .frame(height: previewBoxHeight)
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .padding(.horizontal, DesignTokens.space4)
+
+            // Zone order editing controls (only when editing)
+            if isEditingZoneOrder {
+                HStack(spacing: DesignTokens.space2) {
+                    Text("Select a zone, then press 1-9")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(AppColors.textSecondary)
+
+                    Spacer()
+
+                    Button {
+                        autoFillZones(order: .leftToRight)
+                    } label: {
+                        Label("Fill", systemImage: "arrow.right")
+                    }
+                    .buttonStyle(PillButtonStyle(variant: .secondary, accentColor: accentColor))
+                    .help("Auto-fill zones left to right")
+
+                    Button {
+                        autoFillZones(order: .topToBottom)
+                    } label: {
+                        Label("Fill", systemImage: "arrow.down")
+                    }
+                    .buttonStyle(PillButtonStyle(variant: .secondary, accentColor: accentColor))
+                    .help("Auto-fill zones top to bottom")
+
+                    Button("Clear") {
+                        clearAllZoneNumbers()
+                    }
+                    .buttonStyle(PillButtonStyle(variant: .ghost, accentColor: accentColor))
+                    .help("Clear all zone numbers")
+                }
+                .padding(.horizontal, DesignTokens.space4)
+            }
         }
+        .padding(.vertical, DesignTokens.space2)
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            // Mode manager
-            ModeManager(appState: appState)
-                .padding()
+        GeometryReader { geo in
+            let previewHeight = max(200, (geo.size.height - 150) * 0.55) // Preview takes ~55% of available space
 
-            Divider()
+            VStack(spacing: 0) {
+                // Mode manager
+                ModeManager(appState: appState)
+                    .padding()
 
-            if selectedTab != .settings {
-                // Monitor selector or multi-monitor overview
-                if appState.activeMode?.globalZones == true {
-                    // Global zones: show all monitors in arrangement view (even single monitor)
-                    globalZonesOverviewSection
-                } else if displays.count > 1 {
-                    // Per-monitor: simple selector (only when multiple monitors)
-                    MonitorSelector(displays: displays, selectedDisplayIndex: $selectedDisplayIndex)
-                        .padding(.horizontal)
-                        .padding(.top, 8)
-                }
-            }
-
-            // Tab selector
-            Picker("", selection: $selectedTab) {
-                ForEach(EditorTab.allCases, id: \.self) { tab in
-                    Text(tab.rawValue).tag(tab)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.top, 8)
-
-            // Content — fills available space; each tab is responsible for
-            // fitting its own content within the frame it receives.
-            Group {
-                switch selectedTab {
-                case .presets:
-                    PresetsTab(zones: currentZonesBinding, accentColor: accentColor, aspectRatio: currentDisplayAspectRatio)
-                case .grid:
-                    GridTab(zones: currentZonesBinding, accentColor: accentColor, aspectRatio: currentDisplayAspectRatio, rows: 2, columns: 2)
-                case .settings:
-                    SettingsView(appState: appState)
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            // Current layout preview
-            if selectedTab != .settings {
                 Divider()
-                VStack(alignment: .center, spacing: 6) {
-                    HStack {
-                        Text("Current Screen Estate")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        if hasChanges {
-                            Text("· Unsaved changes")
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                        }
-                    }
-                    ZonePreview(
-                        zones: currentZonesBinding.wrappedValue,
-                        accentColor: accentColor,
-                        aspectRatio: currentDisplayAspectRatio
-                    )
-                    .frame(height: 100)
+
+                // Split preview section (always visible except Settings)
+                if selectedTab != .settings {
+                    splitPreviewSection(height: previewHeight)
                 }
-                .padding(.horizontal)
-                .padding(.vertical, 10)
-            }
 
-            Divider()
+                // Tab selector
+                RefinedTabBar(selection: $selectedTab, accentColor: accentColor)
+                    .padding(.horizontal, DesignTokens.space4)
+                    .padding(.top, DesignTokens.space3)
 
-            HStack {
-                Button("Reset") {
+                // Content
+                Group {
+                    switch selectedTab {
+                    case .presets:
+                        PresetsTab(zones: currentZonesBinding, accentColor: accentColor, aspectRatio: currentDisplayAspectRatio)
+                    case .grid:
+                        GridTab(zones: currentZonesBinding, accentColor: accentColor, aspectRatio: currentDisplayAspectRatio, rows: 1, columns: 1)
+                    case .settings:
+                        SettingsView(appState: appState)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            RefinedDivider()
+
+            HStack(spacing: DesignTokens.space3) {
+                Button {
                     resetConfig()
+                } label: {
+                    Label("Reset", systemImage: "arrow.counterclockwise")
                 }
                 .keyboardShortcut("z", modifiers: [.command, .shift])
-                .buttonStyle(.bordered)
+                .buttonStyle(PillButtonStyle(variant: .ghost, accentColor: accentColor, isDisabled: !hasChanges))
                 .disabled(!hasChanges)
-                .padding(.vertical)
-                .padding(.leading)
 
                 Spacer()
 
                 if showSavedConfirmation {
-                    Label("Saved", systemImage: "checkmark.circle.fill")
-                        .foregroundColor(.green)
-                        .transition(.opacity)
-                        .onAppear {
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                                withAnimation { showSavedConfirmation = false }
+                    HStack(spacing: DesignTokens.space1) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text("Saved")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.green)
+                    }
+                    .transition(.opacity.combined(with: .scale(scale: 0.9)))
+                    .onAppear {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            withAnimation(.easeOut(duration: DesignTokens.durationNormal)) {
+                                showSavedConfirmation = false
                             }
                         }
+                    }
                 }
 
                 Button("Save") {
                     saveConfig()
                 }
                 .keyboardShortcut("s", modifiers: .command)
-                .buttonStyle(.bordered)
+                .buttonStyle(PillButtonStyle(variant: .secondary, accentColor: accentColor, isDisabled: !hasChanges))
                 .disabled(!hasChanges)
-                .padding(.vertical)
 
                 Button("Save + Close") {
                     saveConfig()
                     NSApp.keyWindow?.close()
                 }
                 .keyboardShortcut(.return, modifiers: [])
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(PillButtonStyle(variant: .primary, accentColor: accentColor, isDisabled: !hasChanges))
                 .disabled(!hasChanges)
-                .padding(.vertical)
-                .padding(.trailing)
+            }
+            .padding(.horizontal, DesignTokens.space4)
+            .padding(.vertical, DesignTokens.space3)
             }
         }
         .frame(minWidth: 600, minHeight: 500)
@@ -338,6 +399,11 @@ struct EditorWindow: View {
     }
 
     private func clearZoneAssignments() {
+        appState.modes[appState.activeModeIndex].globalZoneAssignments = nil
+    }
+
+    private func clearAllZoneNumbers() {
+        // Set to empty dictionary - manual mode with no assignments (no numbers shown)
         appState.modes[appState.activeModeIndex].globalZoneAssignments = [:]
     }
 }

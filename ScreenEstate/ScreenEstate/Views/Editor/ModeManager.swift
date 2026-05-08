@@ -6,70 +6,116 @@ struct ModeManager: View {
     @State private var editingName: String = ""
     @FocusState private var isNameFieldFocused: Bool
 
-    private var globalZonesBinding: Binding<Bool> {
-        Binding(
-            get: { appState.activeMode?.globalZones ?? false },
-            set: { newValue in
-                appState.modes[appState.activeModeIndex].globalZones = newValue
-            }
-        )
+    private var accentColor: Color {
+        let rgba = appState.settings.accentColorRGBA
+        return Color(red: rgba.red, green: rgba.green, blue: rgba.blue, opacity: rgba.alpha)
     }
 
     var body: some View {
-        HStack {
-            if editingModeID != nil {
-                // In-place editable text field replaces the picker while renaming
-                HStack(spacing: 4) {
-                    Text("Mode")
-                        .foregroundColor(.secondary)
+        HStack(spacing: DesignTokens.space3) {
+            // Mode selector group
+            HStack(spacing: DesignTokens.space2) {
+                if editingModeID != nil {
                     TextField("Mode name", text: $editingName)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: 200)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 12, weight: .medium))
+                        .padding(.horizontal, DesignTokens.space2)
+                        .padding(.vertical, DesignTokens.space1 + 2)
+                        .background(
+                            RoundedRectangle(cornerRadius: DesignTokens.radiusSmall)
+                                .fill(AppColors.backgroundBase)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: DesignTokens.radiusSmall)
+                                        .strokeBorder(accentColor.opacity(0.5), lineWidth: DesignTokens.borderMedium)
+                                )
+                        )
+                        .frame(maxWidth: 160)
                         .focused($isNameFieldFocused)
                         .onSubmit { commitRename() }
                         .onChange(of: isNameFieldFocused) { _, focused in
                             if !focused { commitRename() }
                         }
-                }
-            } else {
-                Picker("Mode", selection: $appState.activeModeIndex) {
-                    ForEach(Array(appState.modes.enumerated()), id: \.element.id) { index, mode in
-                        Text(mode.name).tag(index)
-                    }
-                }
-                .frame(maxWidth: 200)
-            }
-
-            Button("Add Mode") {
-                let newMode = Mode(id: UUID(), name: "New Mode", layouts: [])
-                appState.modes.append(newMode)
-                appState.activeModeIndex = appState.modes.count - 1
-            }
-
-            if let mode = appState.activeMode {
-                if editingModeID == mode.id {
-                    Button("Done") { commitRename() }
                 } else {
-                    Button("Rename") {
-                        editingModeID = mode.id
-                        editingName = mode.name
-                        isNameFieldFocused = true
+                    Menu {
+                        ForEach(Array(appState.modes.enumerated()), id: \.element.id) { index, mode in
+                            Button {
+                                appState.activeModeIndex = index
+                            } label: {
+                                HStack {
+                                    Text(mode.name)
+                                    if index == appState.activeModeIndex {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        Text(appState.activeMode?.name ?? "Global")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(AppColors.textPrimary)
+                            .padding(.horizontal, DesignTokens.space3)
+                            .padding(.vertical, DesignTokens.space2)
+                            .background(
+                                RoundedRectangle(cornerRadius: DesignTokens.radiusSmall)
+                                    .fill(AppColors.backgroundElevated)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: DesignTokens.radiusSmall)
+                                            .strokeBorder(AppColors.borderSubtle, lineWidth: DesignTokens.borderThin)
+                                    )
+                            )
                     }
+                    .menuStyle(.borderlessButton)
+                    .fixedSize()
                 }
             }
 
-            Button("Delete") {
-                guard appState.modes.count > 1 else { return }
-                appState.modes.remove(at: appState.activeModeIndex)
-                appState.activeModeIndex = max(0, appState.activeModeIndex - 1)
+            // Action buttons
+            HStack(spacing: DesignTokens.space1) {
+                Button {
+                    let newMode = Mode(id: UUID(), name: "New Mode", layouts: [])
+                    appState.modes.append(newMode)
+                    appState.activeModeIndex = appState.modes.count - 1
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .buttonStyle(IconButtonStyle(accentColor: accentColor))
+                .help("Add new mode")
+
+                if let mode = appState.activeMode {
+                    if editingModeID == mode.id {
+                        Button {
+                            commitRename()
+                        } label: {
+                            Image(systemName: "checkmark")
+                        }
+                        .buttonStyle(IconButtonStyle(isActive: true, accentColor: accentColor))
+                    } else {
+                        Button {
+                            editingModeID = mode.id
+                            editingName = mode.name
+                            isNameFieldFocused = true
+                        } label: {
+                            Image(systemName: "pencil")
+                        }
+                        .buttonStyle(IconButtonStyle(accentColor: accentColor))
+                        .help("Rename mode")
+                    }
+                }
+
+                Button {
+                    guard appState.modes.count > 1 else { return }
+                    appState.modes.remove(at: appState.activeModeIndex)
+                    appState.activeModeIndex = max(0, appState.activeModeIndex - 1)
+                } label: {
+                    Image(systemName: "trash")
+                }
+                .buttonStyle(IconButtonStyle(accentColor: accentColor))
+                .disabled(appState.modes.count <= 1)
+                .opacity(appState.modes.count <= 1 ? 0.4 : 1)
+                .help("Delete mode")
             }
-            .disabled(appState.modes.count <= 1)
 
             Spacer()
-
-            Toggle("Global Zones", isOn: globalZonesBinding)
-                .toggleStyle(.checkbox)
-                .help("Number zones across all monitors (1-9) instead of per-monitor")
         }
     }
 

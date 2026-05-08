@@ -177,11 +177,15 @@ private struct MonitorView: View {
     var body: some View {
         ZStack {
             // Monitor background - tappable to select monitor
-            RoundedRectangle(cornerRadius: 6)
-                .fill(Color(nsColor: .controlBackgroundColor))
+            // Button taps on zones take priority over this onTapGesture
+            RoundedRectangle(cornerRadius: DesignTokens.radiusMedium)
+                .fill(AppColors.backgroundElevated)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .stroke(isMonitorSelected ? accentColor : Color.gray.opacity(0.4), lineWidth: isMonitorSelected ? 2 : 1)
+                    RoundedRectangle(cornerRadius: DesignTokens.radiusMedium)
+                        .strokeBorder(
+                            isMonitorSelected ? accentColor.opacity(0.6) : AppColors.borderSubtle,
+                            lineWidth: isMonitorSelected ? DesignTokens.borderMedium : DesignTokens.borderThin
+                        )
                 )
                 .contentShape(Rectangle())
                 .onTapGesture {
@@ -211,12 +215,12 @@ private struct MonitorView: View {
                 Spacer()
                 Text(display.name)
                     .font(.system(size: 9, weight: .medium))
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 4)
+                    .foregroundColor(AppColors.textSecondary)
+                    .padding(.horizontal, DesignTokens.space2)
                     .padding(.vertical, 2)
-                    .background(Color(nsColor: .controlBackgroundColor).opacity(0.8))
+                    .background(AppColors.backgroundElevated.opacity(0.9))
                     .cornerRadius(3)
-                    .padding(.bottom, 4)
+                    .padding(.bottom, DesignTokens.space2)
             }
             .allowsHitTesting(false)
         }
@@ -251,13 +255,13 @@ private struct ZoneView: View {
         Button(action: onTap) {
             ZStack {
                 // Zone background
-                RoundedRectangle(cornerRadius: 3)
+                RoundedRectangle(cornerRadius: DesignTokens.radiusSmall)
                     .fill(isSelected ? accentColor.opacity(0.35) : accentColor.opacity(0.15))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 3)
+                        RoundedRectangle(cornerRadius: DesignTokens.radiusSmall)
                             .strokeBorder(
                                 isSelected ? accentColor : accentColor.opacity(0.4),
-                                lineWidth: isSelected ? 2 : 1
+                                lineWidth: isSelected ? DesignTokens.borderMedium : DesignTokens.borderThin
                             )
                     )
 

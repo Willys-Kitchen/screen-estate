@@ -4,6 +4,11 @@ import ServiceManagement
 struct SettingsView: View {
     @Bindable var appState: AppState
 
+    private var accentColor: Color {
+        let rgba = appState.settings.accentColorRGBA
+        return Color(red: rgba.red, green: rgba.green, blue: rgba.blue, opacity: rgba.alpha)
+    }
+
     private var accentColorBinding: Binding<Color> {
         Binding(
             get: {
@@ -100,5 +105,6 @@ struct SettingsView: View {
         }
         .formStyle(.grouped)
         .frame(minWidth: 400)
+        .tint(accentColor)
     }
 }
