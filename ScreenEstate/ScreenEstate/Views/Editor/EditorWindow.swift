@@ -154,7 +154,7 @@ struct EditorWindow: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Typography.label("All Monitors")
-                            Text("Click monitor to select")
+                            Text(isEditingZoneOrder ? "Click a zone then input a number to assign" : "Click monitor to select")
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundColor(AppColors.textSecondary)
                         }
@@ -209,10 +209,6 @@ struct EditorWindow: View {
             // Zone order editing controls (only when editing)
             if isEditingZoneOrder {
                 HStack(spacing: DesignTokens.space2) {
-                    Text("Select a zone, then press 1-9")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(AppColors.textSecondary)
-
                     Spacer()
 
                     Button {
