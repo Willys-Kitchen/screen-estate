@@ -1,16 +1,18 @@
 # Screen Estate
 
-Screen Estate is a macOS window snapping utility, similar to [FancyZones](https://learn.microsoft.com/en-us/windows/powertoys/fancyzones) on Windows — free and fully vibe coded.
+Screen Estate is an app to help you manage your screen real estate for free. It's a macOS window snapping utility app, similar to [FancyZones](https://learn.microsoft.com/en-us/windows/powertoys/fancyzones) on Windows.
 
-Hold **Shift** while dragging a window and your defined zones appear on screen. Drag into one and the window resizes to fill it. Zones are configured per display and saved per mode, so you can have different layouts for different workflows.
+Hold **Shift** while dragging a window and your defined zones appear on screen. Drag into one and the window resizes to fill it. Alternatively, press **⌃⌥ + 1–9** to snap the focused window directly to a numbered zone. Zones are configured per display and saved per mode, so you can have different layouts for different workflows.
 
 ## Features
 
 - **Snap zones** — drag any window with Shift held to snap it to a defined zone
-- **Preset layouts** — halves, thirds, two-thirds/one-third, quadrants
+- **Keyboard shortcuts** — `Modifier + 1–9` snaps the focused window; `Modifier + 0` cycles modes
+- **Preset layouts** — halves, thirds, two-thirds/one-third, quadrants (portrait-aware)
 - **Custom grid editor** — merge and split cells to build your own layout
 - **Multiple modes** — save different zone setups and switch between them
 - **Multi-monitor** — configure zones per display independently
+- **Customizable** — pick your modifier key (⌃⌥⇧⌘), accent color, and toggle drag-snap separately
 
 ## Requirements
 
@@ -37,10 +39,12 @@ Hold **Shift** while dragging a window and your defined zones appear on screen. 
 
 ## Usage
 
-- **Open the editor** — click the menu bar icon → **Open Editor**
+- **Open the editor** — click the menu bar icon → **Edit Zones…**
 - **Presets tab** — click a preset to apply it to the current display/mode
 - **Grid tab** — click cells to select, click a second cell to extend selection, then **Merge Cells**; double-click to split left/right, ⌃-click to split top/bottom
-- **Snap a window** — hold **Shift**, start dragging any window, hover over a zone highlight, release
+- **Snap a window** — hold **Shift** and drag any window to a zone highlight, or press `Modifier + 1–9` (default ⌃⌥) to snap the focused window
+- **Cycle modes** — press `Modifier + 0`
+- **Toggle snapping** — click the menu bar icon and use the **Enabled** toggle
 
 ## License
 
