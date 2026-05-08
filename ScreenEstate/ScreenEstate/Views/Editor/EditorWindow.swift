@@ -44,7 +44,20 @@ struct EditorWindow: View {
                 ensureLayoutExists(for: display)
                 if let layoutIndex = appState.modes[appState.activeModeIndex].layouts
                     .firstIndex(where: { $0.displayIdentifier == display.identifier }) {
+                    let oldZones = appState.modes[appState.activeModeIndex].layouts[layoutIndex].zones
                     appState.modes[appState.activeModeIndex].layouts[layoutIndex].zones = newZones
+
+                    // Clear stale globalZoneAssignments for old zone UUIDs that no longer exist
+                    // This prevents Fill from using assignments keyed to old zone IDs
+                    if var assignments = appState.modes[appState.activeModeIndex].globalZoneAssignments {
+                        let oldZoneIDs = Set(oldZones.map { $0.id.uuidString })
+                        let newZoneIDs = Set(newZones.map { $0.id.uuidString })
+                        let removedZoneIDs = oldZoneIDs.subtracting(newZoneIDs)
+                        for zoneID in removedZoneIDs {
+                            assignments.removeValue(forKey: zoneID)
+                        }
+                        appState.modes[appState.activeModeIndex].globalZoneAssignments = assignments
+                    }
                 }
             }
         )
@@ -99,33 +112,38 @@ struct EditorWindow: View {
                 // Left panel: Current monitor detail
                 VStack(alignment: .leading, spacing: DesignTokens.space2) {
                     // Header row with label and monitor picker - fixed height
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Typography.label("Current Monitor")
-                            // Monitor picker dropdown
-                            Menu {
-                                ForEach(Array(displays.enumerated()), id: \.element.identifier) { index, display in
-                                    Button {
-                                        selectedDisplayIndex = index
-                                    } label: {
-                                        HStack {
-                                            Text(display.name)
-                                            if index == selectedDisplayIndex {
-                                                Image(systemName: "checkmark")
-                                            }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Typography.label("Current Monitor")
+                        // Monitor picker dropdown - offset to align with label (compensate for menu's intrinsic leading padding)
+                        Menu {
+                            ForEach(Array(displays.enumerated()), id: \.element.identifier) { index, display in
+                                Button {
+                                    selectedDisplayIndex = index
+                                } label: {
+                                    HStack {
+                                        Text(display.name)
+                                        if index == selectedDisplayIndex {
+                                            Image(systemName: "checkmark")
                                         }
                                     }
                                 }
-                            } label: {
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "chevron.down")
+                                    .font(.system(size: 8, weight: .semibold))
+                                    .foregroundColor(AppColors.textTertiary)
                                 Text(currentDisplayName)
                                     .font(.system(size: 11, weight: .medium))
                                     .foregroundColor(AppColors.textSecondary)
                             }
-                            .menuStyle(.borderlessButton)
-                            .fixedSize()
                         }
-                        Spacer()
+                        .menuStyle(.borderlessButton)
+                        .menuIndicator(.hidden)
+                        .fixedSize()
+                        .offset(x: -4) // Align with label above
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .frame(height: 36) // Fixed header height to match right panel
 
                     // Zone preview container
@@ -160,12 +178,17 @@ struct EditorWindow: View {
                         }
                         Spacer()
                         Button {
-                            isEditingZoneOrder.toggle()
+                            if isEditingZoneOrder {
+                                saveConfig()
+                                isEditingZoneOrder = false
+                            } else {
+                                isEditingZoneOrder = true
+                            }
                         } label: {
                             HStack(spacing: DesignTokens.space1) {
                                 Image(systemName: isEditingZoneOrder ? "checkmark" : "pencil")
                                     .font(.system(size: 10, weight: .medium))
-                                Text(isEditingZoneOrder ? "Done" : "Zone Order")
+                                Text(isEditingZoneOrder ? "Save" : "Zone Order")
                                     .font(.system(size: 10, weight: .medium))
                             }
                         }
@@ -173,7 +196,7 @@ struct EditorWindow: View {
                             variant: isEditingZoneOrder ? .primary : .secondary,
                             accentColor: accentColor
                         ))
-                        .help(isEditingZoneOrder ? "Done editing zone numbers" : "Edit zone numbers")
+                        .help(isEditingZoneOrder ? "Save and exit zone editing" : "Edit zone numbers")
                     }
                     .frame(height: 36) // Fixed header height
 
@@ -307,6 +330,7 @@ struct EditorWindow: View {
 
                 Button("Save") {
                     saveConfig()
+                    isEditingZoneOrder = false
                 }
                 .keyboardShortcut("s", modifiers: .command)
                 .buttonStyle(PillButtonStyle(variant: .secondary, accentColor: accentColor, isDisabled: !hasChanges))
@@ -314,6 +338,7 @@ struct EditorWindow: View {
 
                 Button("Save + Close") {
                     saveConfig()
+                    isEditingZoneOrder = false
                     NSApp.keyWindow?.close()
                 }
                 .keyboardShortcut(.return, modifiers: [])
