@@ -279,13 +279,10 @@ struct GridTab: View {
         }
         .padding()
         .onAppear {
-            // Only initialize zones from the grid if no zones exist yet.
-            // All grid mutations (merge, split, undo, reset, dimension changes)
-            // already sync zones via grid.toZones(), so this is only needed as
-            // a fallback for an empty initial state.
-            if zones.isEmpty {
-                zones = grid.toZones()
-            }
+            // Always sync zones to the grid's initial state when the tab appears.
+            // This ensures that switching to Grid tab with a 1x1 default immediately
+            // applies that layout, making it saveable without requiring manual edits.
+            zones = grid.toZones()
         }
     }
 

@@ -47,16 +47,15 @@ struct EditorWindow: View {
                     let oldZones = appState.modes[appState.activeModeIndex].layouts[layoutIndex].zones
                     appState.modes[appState.activeModeIndex].layouts[layoutIndex].zones = newZones
 
-                    // Clear stale globalZoneAssignments for old zone UUIDs that no longer exist
-                    // This prevents Fill from using assignments keyed to old zone IDs
-                    if var assignments = appState.modes[appState.activeModeIndex].globalZoneAssignments {
-                        let oldZoneIDs = Set(oldZones.map { $0.id.uuidString })
-                        let newZoneIDs = Set(newZones.map { $0.id.uuidString })
-                        let removedZoneIDs = oldZoneIDs.subtracting(newZoneIDs)
-                        for zoneID in removedZoneIDs {
-                            assignments.removeValue(forKey: zoneID)
-                        }
-                        appState.modes[appState.activeModeIndex].globalZoneAssignments = assignments
+                    // Check if the zone set has changed (not just reordered)
+                    let oldZoneIDs = Set(oldZones.map { $0.id })
+                    let newZoneIDs = Set(newZones.map { $0.id })
+                    let zonesChanged = oldZoneIDs != newZoneIDs
+
+                    if zonesChanged {
+                        // Zones have changed (preset selected or grid modified) - reset to auto-numbering
+                        // Setting to nil enables automatic left-to-right zone numbering
+                        appState.modes[appState.activeModeIndex].globalZoneAssignments = nil
                     }
                 }
             }
