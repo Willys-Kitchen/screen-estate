@@ -500,7 +500,7 @@ struct RefinedMergeButtonStyle: ButtonStyle {
 
     private func background(pressed: Bool) -> some ShapeStyle {
         if !isActive {
-            return AnyShapeStyle(Color.white.opacity(0.06))
+            return AnyShapeStyle(Color.primary.opacity(0.06))
         }
         if isError || flash {
             return AnyShapeStyle(Color.red.opacity(pressed ? 0.25 : 0.15))

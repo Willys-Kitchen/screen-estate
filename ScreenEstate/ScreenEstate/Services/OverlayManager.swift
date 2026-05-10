@@ -70,15 +70,21 @@ class OverlayManager {
     }
 
     func flashModeName(_ name: String, on screen: NSScreen) {
+        // Dismiss any existing flash window immediately to prevent orphaned windows
+        // when user cycles modes faster than the 1s fade delay
+        flashWindow?.orderOut(nil)
+
         let window = OverlayWindow(for: screen)
         window.contentView = NSHostingView(rootView: ModeFlashView(modeName: name))
         window.setFrame(screen.visibleFrame, display: true)
         window.orderFront(nil)
         flashWindow = window
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
-            self?.flashWindow?.orderOut(nil)
-            self?.flashWindow = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self, weak window] in
+            // Only hide if this specific window is still the active flash window
+            guard let self, self.flashWindow === window else { return }
+            self.flashWindow?.orderOut(nil)
+            self.flashWindow = nil
         }
     }
 }

@@ -61,15 +61,19 @@ struct AppColors {
     static let backgroundElevated = Color(nsColor: .controlBackgroundColor).opacity(0.8)
     static let backgroundSurface = Color(nsColor: .unemphasizedSelectedContentBackgroundColor)
 
-    // Borders
-    static let borderSubtle = Color.white.opacity(0.06)
-    static let borderMedium = Color.white.opacity(0.12)
-    static let borderStrong = Color.white.opacity(0.20)
+    // Adaptive borders - work in both light and dark modes
+    static let borderSubtle = Color.primary.opacity(0.08)
+    static let borderMedium = Color.primary.opacity(0.15)
+    static let borderStrong = Color.primary.opacity(0.25)
 
-    // Text
-    static let textPrimary = Color.white.opacity(0.95)
-    static let textSecondary = Color.white.opacity(0.55)
-    static let textTertiary = Color.white.opacity(0.35)
+    // Adaptive text - using SwiftUI's semantic colors
+    static let textPrimary = Color.primary.opacity(0.90)
+    static let textSecondary = Color.secondary
+    static let textTertiary = Color.primary.opacity(0.40)
+
+    // Button backgrounds - adaptive for light/dark
+    static let buttonBackgroundLight = Color.primary.opacity(0.06)
+    static let buttonBackgroundPressed = Color.primary.opacity(0.12)
 }
 
 // MARK: - Typography
@@ -144,7 +148,7 @@ struct PillButtonStyle: ButtonStyle {
             case .primary:
                 accentColor.opacity(isPressed ? 0.9 : 1)
             case .secondary:
-                Color.white.opacity(isPressed ? 0.12 : 0.08)
+                Color.primary.opacity(isPressed ? 0.12 : 0.06)
             case .ghost:
                 Color.clear
             }
@@ -187,7 +191,7 @@ struct IconButtonStyle: ButtonStyle {
             .padding(DesignTokens.space2)
             .background(
                 RoundedRectangle(cornerRadius: DesignTokens.radiusSmall)
-                    .fill(isActive ? accentColor.opacity(0.15) : Color.white.opacity(configuration.isPressed ? 0.08 : 0))
+                    .fill(isActive ? accentColor.opacity(0.15) : Color.primary.opacity(configuration.isPressed ? 0.08 : 0))
             )
             .foregroundColor(isActive ? accentColor : AppColors.textSecondary)
             .scaleEffect(configuration.isPressed ? 0.95 : 1)

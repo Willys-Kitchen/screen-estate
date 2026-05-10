@@ -12,9 +12,9 @@ struct ZonePreview: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                // Subtle background
+                // Subtle background - adaptive for light/dark mode
                 RoundedRectangle(cornerRadius: DesignTokens.radiusSmall)
-                    .fill(Color.black.opacity(0.08))
+                    .fill(Color.primary.opacity(0.05))
 
                 ForEach(zones) { zone in
                     zoneCell(zone: zone, in: geo.size)

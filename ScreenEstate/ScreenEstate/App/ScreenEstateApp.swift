@@ -58,6 +58,14 @@ struct ScreenEstateApp: App {
     private let displayService: DisplayService
     private let autoSaveController: AutoSaveController
 
+    private var preferredColorScheme: ColorScheme? {
+        switch appState.settings.themeMode {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
+    }
+
     var body: some Scene {
         MenuBarExtra("Screen Estate", image: "MenuBarIcon") {
             MenuBarView(appState: appState, onOpenEditor: openEditor)
@@ -68,6 +76,7 @@ struct ScreenEstateApp: App {
 
         Window("Zone Editor", id: "editor") {
             EditorWindow(appState: appState, displayService: displayService, persistence: persistence)
+                .preferredColorScheme(preferredColorScheme)
         }
         .defaultSize(width: 650, height: 550)
     }

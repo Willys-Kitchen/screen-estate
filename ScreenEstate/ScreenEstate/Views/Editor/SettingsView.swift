@@ -64,6 +64,13 @@ struct SettingsView: View {
             }
 
             Section("Appearance") {
+                Picker("Theme", selection: $appState.settings.themeMode) {
+                    ForEach(ThemeMode.allCases, id: \.self) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                .pickerStyle(.segmented)
+
                 ColorPicker("Accent Color", selection: accentColorBinding)
             }
 
