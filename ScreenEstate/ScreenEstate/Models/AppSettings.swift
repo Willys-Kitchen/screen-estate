@@ -84,6 +84,7 @@ struct AppSettings: Codable, Equatable {
     var isEnabled: Bool
     var isDragSnapEnabled: Bool
     var themeMode: ThemeMode
+    var hasSeenOnboarding: Bool
 
     static let defaultSettings = AppSettings(
         accentColorRGBA: .defaultBlue,
@@ -91,10 +92,11 @@ struct AppSettings: Codable, Equatable {
         launchAtLogin: false,
         isEnabled: true,
         isDragSnapEnabled: true,
-        themeMode: .system
+        themeMode: .system,
+        hasSeenOnboarding: false
     )
 
-    // Custom decoding to handle missing themeMode in existing configs
+    // Custom decoding to handle missing fields in existing configs
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         accentColorRGBA = try container.decode(RGBA.self, forKey: .accentColorRGBA)
@@ -103,14 +105,16 @@ struct AppSettings: Codable, Equatable {
         isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
         isDragSnapEnabled = try container.decode(Bool.self, forKey: .isDragSnapEnabled)
         themeMode = try container.decodeIfPresent(ThemeMode.self, forKey: .themeMode) ?? .system
+        hasSeenOnboarding = try container.decodeIfPresent(Bool.self, forKey: .hasSeenOnboarding) ?? false
     }
 
-    init(accentColorRGBA: RGBA, modifierKey: CustomModifierKey, launchAtLogin: Bool, isEnabled: Bool, isDragSnapEnabled: Bool, themeMode: ThemeMode = .system) {
+    init(accentColorRGBA: RGBA, modifierKey: CustomModifierKey, launchAtLogin: Bool, isEnabled: Bool, isDragSnapEnabled: Bool, themeMode: ThemeMode = .system, hasSeenOnboarding: Bool = false) {
         self.accentColorRGBA = accentColorRGBA
         self.modifierKey = modifierKey
         self.launchAtLogin = launchAtLogin
         self.isEnabled = isEnabled
         self.isDragSnapEnabled = isDragSnapEnabled
         self.themeMode = themeMode
+        self.hasSeenOnboarding = hasSeenOnboarding
     }
 }

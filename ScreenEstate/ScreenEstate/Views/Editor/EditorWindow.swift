@@ -15,6 +15,7 @@ struct EditorWindow: View {
     @State private var savedModes: [Mode] = []
     @State private var savedSettings: AppSettings = .defaultSettings
     @State private var showSavedConfirmation = false
+    @State private var showOnboardingBanner = false
 
     enum EditorTab: String, CaseIterable {
         case presets = "Presets"
@@ -154,12 +155,27 @@ struct EditorWindow: View {
                                     .strokeBorder(AppColors.borderSubtle, lineWidth: DesignTokens.borderThin)
                             )
 
-                        ZonePreview(
-                            zones: currentZonesBinding.wrappedValue,
-                            accentColor: accentColor,
-                            aspectRatio: currentDisplayAspectRatio
-                        )
-                        .padding(DesignTokens.space3)
+                        if currentZonesBinding.wrappedValue.isEmpty {
+                            // Empty mode guidance
+                            VStack(spacing: DesignTokens.space2) {
+                                Image(systemName: "rectangle.3.group")
+                                    .font(.system(size: 28))
+                                    .foregroundColor(AppColors.textTertiary)
+                                Text("No zones configured")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(AppColors.textSecondary)
+                                Text("Choose a preset below or draw a custom grid")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(AppColors.textTertiary)
+                            }
+                        } else {
+                            ZonePreview(
+                                zones: currentZonesBinding.wrappedValue,
+                                accentColor: accentColor,
+                                aspectRatio: currentDisplayAspectRatio
+                            )
+                            .padding(DesignTokens.space3)
+                        }
                     }
                     .frame(height: previewBoxHeight)
                 }
@@ -266,6 +282,32 @@ struct EditorWindow: View {
             let previewHeight = max(200, (geo.size.height - 150) * 0.55) // Preview takes ~55% of available space
 
             VStack(spacing: 0) {
+                // First-run onboarding banner
+                if showOnboardingBanner {
+                    HStack(spacing: DesignTokens.space2) {
+                        Image(systemName: "sparkles")
+                            .foregroundColor(accentColor)
+                        Text("Quick tip: Press \(appState.settings.modifierKey.displayString)+1-9 to snap windows to zones. Create multiple modes for different workflows, then \(appState.settings.modifierKey.displayString)+0 to cycle.")
+                            .font(.system(size: 12))
+                            .foregroundColor(AppColors.textSecondary)
+                        Spacer()
+                        Button {
+                            withAnimation(.easeOut(duration: DesignTokens.durationNormal)) {
+                                showOnboardingBanner = false
+                                appState.settings.hasSeenOnboarding = true
+                            }
+                        } label: {
+                            Text("Got it")
+                                .font(.system(size: 11, weight: .medium))
+                        }
+                        .buttonStyle(PillButtonStyle(variant: .secondary, accentColor: accentColor))
+                    }
+                    .padding(.horizontal, DesignTokens.space4)
+                    .padding(.vertical, DesignTokens.space3)
+                    .background(accentColor.opacity(0.08))
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
+
                 // Mode manager
                 ModeManager(appState: appState)
                     .padding()
@@ -352,6 +394,10 @@ struct EditorWindow: View {
         .onAppear {
             savedModes = appState.modes
             savedSettings = appState.settings
+            // Show onboarding banner for first-time users
+            if !appState.settings.hasSeenOnboarding {
+                showOnboardingBanner = true
+            }
         }
     }
 

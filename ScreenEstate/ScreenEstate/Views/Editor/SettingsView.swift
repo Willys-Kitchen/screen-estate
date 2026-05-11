@@ -75,6 +75,9 @@ struct SettingsView: View {
             }
 
             Section("Modifier Key") {
+                Text("Hold \(appState.settings.modifierKey.displayString) + a number key to snap windows or cycle modes. At least one modifier must be selected.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                 modifierToggle("⌃  Control",
                     isOn: appState.settings.modifierKey.control,
                     flag: .control)
@@ -87,12 +90,12 @@ struct SettingsView: View {
                 modifierToggle("⌘  Command",
                     isOn: appState.settings.modifierKey.command,
                     flag: .command)
-                Text("At least one modifier must be selected")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
             }
 
             Section("Shortcuts") {
+                Text("Modes let you save different zone layouts for different workflows. Create modes for coding, design, meetings, etc. Press \(appState.settings.modifierKey.displayString)+0 to cycle through them instantly.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                 LabeledContent("Snap to zone") {
                     Text("\(appState.settings.modifierKey.displayString) + 1 … 9")
                         .foregroundColor(.secondary)

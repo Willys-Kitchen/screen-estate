@@ -28,16 +28,21 @@ struct MenuBarView: View {
                     }
                 }
             }
+            Text("Cycle modes: \(appState.settings.modifierKey.displayString)+0")
+                .font(.caption)
+                .foregroundColor(.secondary)
             Divider()
         }
 
-        Toggle("Enabled", isOn: $appState.settings.isEnabled)
-
-        Button("Edit Zones...") {
+        Button("Settings and Zone Editor") {
             NSApp.activate(ignoringOtherApps: true)
             openWindow(id: "editor")
             onOpenEditor()
         }
+
+        Divider()
+
+        Toggle("Enabled", isOn: $appState.settings.isEnabled)
 
         Divider()
 

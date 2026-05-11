@@ -4,6 +4,7 @@ struct ModeManager: View {
     @Bindable var appState: AppState
     @State private var editingModeID: UUID?
     @State private var editingName: String = ""
+    @State private var showingModeHelp: Bool = false
     @FocusState private var isNameFieldFocused: Bool
 
     private var accentColor: Color {
@@ -67,6 +68,37 @@ struct ModeManager: View {
                     .menuStyle(.borderlessButton)
                     .fixedSize()
                 }
+            }
+
+            // Info button (first, for visibility)
+            Button {
+                showingModeHelp.toggle()
+            } label: {
+                Image(systemName: "questionmark.circle")
+            }
+            .buttonStyle(IconButtonStyle(accentColor: accentColor))
+            .popover(isPresented: $showingModeHelp, arrowEdge: .bottom) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("About Modes")
+                        .font(.headline)
+                    Text("Modes let you save different zone layouts for different workflows—one for coding, another for design, etc.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Divider()
+                    HStack(spacing: 4) {
+                        Text("\(appState.settings.modifierKey.displayString)+0")
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color.secondary.opacity(0.2))
+                            .cornerRadius(4)
+                        Text("to cycle between modes")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding()
+                .frame(width: 260)
             }
 
             // Action buttons
