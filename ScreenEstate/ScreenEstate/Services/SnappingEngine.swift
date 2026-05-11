@@ -15,6 +15,7 @@ class SnappingEngine {
     private var appState: AppState
     private var activeZone: Zone?
     private var cachedWindow: AXUIElement? // Captured when Shift is pressed
+    private var cachedGlobalZones: [GlobalZoneHelper.GlobalZone]? // Cached during tracking
 
     private var monitors: [Any] = []
     var onSnapFailed: (() -> Void)?
@@ -43,7 +44,9 @@ class SnappingEngine {
         if let m = dragMonitor { monitors.append(m) }
         if let m = mouseUpMonitor { monitors.append(m) }
         if let m = flagsMonitor { monitors.append(m) }
+        #if DEBUG
         NSLog("Screen Estate: Drag monitors registered")
+        #endif
     }
 
     func stop() {
@@ -78,8 +81,15 @@ class SnappingEngine {
                 NSLog("Screen Estate: No focused window found (fresh and cached both nil/invalid)")
                 return
             }
+            #if DEBUG
             NSLog("Screen Estate: Started tracking drag (used \(freshWindow != nil ? "fresh" : "cached") window)")
+            #endif
             state = .tracking(window: window)
+            // Cache global zones once at tracking start
+            if let mode = appState.activeMode, mode.globalZones {
+                let displays = displayService.connectedDisplays()
+                cachedGlobalZones = GlobalZoneHelper.computeGlobalZones(displays: displays, mode: mode)
+            }
             showOverlaysForCurrentMode()
             updateHitTest()
 
@@ -95,14 +105,18 @@ class SnappingEngine {
             // Re-validate the window reference before snapping — it may have
             // become stale during the drag (e.g. window closed, app quit).
             if windowService.isWindowValid(window) {
+                #if DEBUG
                 NSLog("Screen Estate: Snapping to zone \(zone.number)")
+                #endif
                 snapWindow(window, to: zone)
             } else {
                 NSLog("Screen Estate: Window became invalid during drag, cannot snap")
                 onSnapFailed?()
             }
         } else {
+            #if DEBUG
             NSLog("Screen Estate: Mouse up but no active zone")
+            #endif
         }
         cancelTracking()
     }
@@ -113,11 +127,13 @@ class SnappingEngine {
             // Shift pressed — cache the focused window now, before drag starts
             if case .idle = state {
                 cachedWindow = windowService.getFocusedWindow()
+                #if DEBUG
                 if cachedWindow != nil {
                     NSLog("Screen Estate: Cached focused window on Shift press")
                 } else {
                     NSLog("Screen Estate: Shift pressed but no focused window to cache")
                 }
+                #endif
             }
         } else {
             // Shift released
@@ -132,6 +148,7 @@ class SnappingEngine {
         state = .idle
         activeZone = nil
         cachedWindow = nil
+        cachedGlobalZones = nil
         overlayManager.hideOverlays()
     }
 
@@ -141,16 +158,20 @@ class SnappingEngine {
             return
         }
         let displays = displayService.connectedDisplays()
+        #if DEBUG
         NSLog("Screen Estate: Showing overlays for \(displays.count) displays")
+        #endif
 
-        // Compute global numbers once if in global mode
+        // Use cached global zones if available, otherwise compute
         let globalZonesData: [GlobalZoneHelper.GlobalZone]? = mode.globalZones
-            ? GlobalZoneHelper.computeGlobalZones(displays: displays, mode: mode)
+            ? (cachedGlobalZones ?? GlobalZoneHelper.computeGlobalZones(displays: displays, mode: mode))
             : nil
 
         for display in displays {
             let zones = mode.layouts.first { $0.displayIdentifier == display.identifier }?.zones ?? []
+            #if DEBUG
             NSLog("Screen Estate: Display \(display.name) has \(zones.count) zones")
+            #endif
 
             let globalNumbers: [UUID: Int]? = globalZonesData.map { allZones in
                 Dictionary(uniqueKeysWithValues: allZones
@@ -168,9 +189,9 @@ class SnappingEngine {
         let displays = displayService.connectedDisplays()
         guard let mode = appState.activeMode else { return }
 
-        // Compute global numbers once if in global mode
+        // Use cached global zones if available, otherwise compute
         let globalZonesData: [GlobalZoneHelper.GlobalZone]? = mode.globalZones
-            ? GlobalZoneHelper.computeGlobalZones(displays: displays, mode: mode)
+            ? (cachedGlobalZones ?? GlobalZoneHelper.computeGlobalZones(displays: displays, mode: mode))
             : nil
 
         for display in displays {
@@ -203,7 +224,9 @@ class SnappingEngine {
                 let absoluteFrame = zone.absoluteFrame(for: display.visibleFrame)
                 let primaryHeight = NSScreen.screens.first?.frame.height ?? display.frame.height
                 let axFrame = CoordinateConverter.toAccessibility(absoluteFrame, primaryScreenHeight: primaryHeight)
+                #if DEBUG
                 NSLog("Screen Estate: Setting window frame to \(axFrame)")
+                #endif
                 if !windowService.setWindowFrame(window, frame: axFrame) {
                     onSnapFailed?()
                 }
@@ -232,7 +255,9 @@ class SnappingEngine {
 
         // Check if window is fullscreen — if so, exit fullscreen first and snap after animation
         if windowService.isFullscreen(window) {
+            #if DEBUG
             NSLog("Screen Estate: Window is fullscreen, exiting before snap")
+            #endif
             if windowService.exitFullscreen(window) {
                 // Wait for fullscreen exit animation (~0.5s), then snap
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
@@ -258,7 +283,9 @@ class SnappingEngine {
 
         // Global zones mode: find zone by global number across all monitors
         if mode.globalZones {
+            #if DEBUG
             NSLog("Screen Estate: Global zones mode - snapping to global zone \(number)")
+            #endif
             guard let result = GlobalZoneHelper.findZoneByGlobalNumber(number, displays: displays, mode: mode) else {
                 NSLog("Screen Estate: No global zone with number \(number)")
                 return
@@ -266,7 +293,9 @@ class SnappingEngine {
 
             let absoluteFrame = result.zone.absoluteFrame(for: result.display.visibleFrame)
             let axFrame = CoordinateConverter.toAccessibility(absoluteFrame, primaryScreenHeight: primaryHeight)
+            #if DEBUG
             NSLog("Screen Estate: Snapping to \(axFrame) on \(result.display.name)")
+            #endif
             if !windowService.setWindowFrame(window, frame: axFrame) {
                 onSnapFailed?()
             }
@@ -295,7 +324,9 @@ class SnappingEngine {
             return
         }
 
+        #if DEBUG
         NSLog("Screen Estate: Snapping focused window to zone \(number), window at \(position)")
+        #endif
 
         let nsPosition = CoordinateConverter.fromAccessibility(
             CGRect(origin: position, size: .zero), primaryScreenHeight: primaryHeight
@@ -304,11 +335,15 @@ class SnappingEngine {
         for display in displays {
             if display.frame.contains(nsPosition) {
                 let zones = mode.layouts.first { $0.displayIdentifier == display.identifier }?.zones ?? []
+                #if DEBUG
                 NSLog("Screen Estate: Found display \(display.name) with \(zones.count) zones")
+                #endif
                 if let zone = zones.first(where: { $0.number == number }) {
                     let absoluteFrame = zone.absoluteFrame(for: display.visibleFrame)
                     let axFrame = CoordinateConverter.toAccessibility(absoluteFrame, primaryScreenHeight: primaryHeight)
+                    #if DEBUG
                     NSLog("Screen Estate: Snapping to \(axFrame)")
+                    #endif
                     if !windowService.setWindowFrame(window, frame: axFrame) {
                         onSnapFailed?()
                     }

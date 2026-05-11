@@ -1,4 +1,5 @@
 import AppKit
+import Carbon.HIToolbox
 
 @MainActor
 class HotkeyService {
@@ -27,16 +28,16 @@ class HotkeyService {
     }
 
     // Key codes for 0–9 on the number row (layout-independent)
-    private static let digitKeyCodes: [UInt16: Int] = [
-        18: 1, 19: 2, 20: 3, 21: 4, 23: 5,
-        22: 6, 26: 7, 28: 8, 25: 9, 29: 0,
+    private static let digitKeyCodes: [Int: Int] = [
+        kVK_ANSI_1: 1, kVK_ANSI_2: 2, kVK_ANSI_3: 3, kVK_ANSI_4: 4, kVK_ANSI_5: 5,
+        kVK_ANSI_6: 6, kVK_ANSI_7: 7, kVK_ANSI_8: 8, kVK_ANSI_9: 9, kVK_ANSI_0: 0,
     ]
 
     private func handleKeyDown(_ event: NSEvent) {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         guard modifiers.contains(appState.settings.modifierKey.eventFlags) else { return }
 
-        if let digit = Self.digitKeyCodes[event.keyCode] {
+        if let digit = Self.digitKeyCodes[Int(event.keyCode)] {
             if digit >= 1 && digit <= 9 {
                 snappingEngine.snapFocusedWindowToZone(number: digit)
             } else if digit == 0 {
