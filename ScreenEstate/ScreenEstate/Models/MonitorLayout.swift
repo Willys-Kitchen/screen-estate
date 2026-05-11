@@ -9,6 +9,12 @@ struct MonitorLayout: Identifiable, Codable, Equatable {
 
     // MARK: - Presets
 
+    static func presetsFull() -> [Zone] {
+        [
+            Zone(id: UUID(), number: 1, proportionalFrame: CGRect(x: 0, y: 0, width: 1, height: 1)),
+        ]
+    }
+
     static func presetsHalves() -> [Zone] {
         [
             Zone(id: UUID(), number: 1, proportionalFrame: CGRect(x: 0, y: 0, width: 0.5, height: 1)),

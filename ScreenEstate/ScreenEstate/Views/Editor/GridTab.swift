@@ -71,6 +71,28 @@ struct GridTab: View {
         return (minR, maxR, minC, maxC)
     }
 
+    /// Compares two zone arrays by their proportional frames (ignores IDs and numbers).
+    private func zonesMatch(_ a: [Zone], _ b: [Zone]) -> Bool {
+        guard a.count == b.count else { return false }
+        let sortedA = a.sorted { $0.proportionalFrame.origin.x < $1.proportionalFrame.origin.x ||
+            ($0.proportionalFrame.origin.x == $1.proportionalFrame.origin.x &&
+             $0.proportionalFrame.origin.y < $1.proportionalFrame.origin.y) }
+        let sortedB = b.sorted { $0.proportionalFrame.origin.x < $1.proportionalFrame.origin.x ||
+            ($0.proportionalFrame.origin.x == $1.proportionalFrame.origin.x &&
+             $0.proportionalFrame.origin.y < $1.proportionalFrame.origin.y) }
+        for (z1, z2) in zip(sortedA, sortedB) {
+            let f1 = z1.proportionalFrame
+            let f2 = z2.proportionalFrame
+            if abs(f1.origin.x - f2.origin.x) > 0.01 ||
+               abs(f1.origin.y - f2.origin.y) > 0.01 ||
+               abs(f1.width - f2.width) > 0.01 ||
+               abs(f1.height - f2.height) > 0.01 {
+                return false
+            }
+        }
+        return true
+    }
+
     // MARK: - Actions
 
     private func pushHistory() {
@@ -279,10 +301,14 @@ struct GridTab: View {
         }
         .padding()
         .onAppear {
-            // Always sync zones to the grid's initial state when the tab appears.
-            // This ensures that switching to Grid tab with a 1x1 default immediately
-            // applies that layout, making it saveable without requiring manual edits.
-            zones = grid.toZones()
+            // Sync zones to the grid's initial state only if the layout differs.
+            // This ensures switching to Grid tab with a 1x1 default immediately
+            // applies that layout (making it saveable), but doesn't trigger
+            // "unsaved" if the screen is already a 1x1 grid.
+            let gridZones = grid.toZones()
+            if !zonesMatch(zones, gridZones) {
+                zones = gridZones
+            }
         }
     }
 

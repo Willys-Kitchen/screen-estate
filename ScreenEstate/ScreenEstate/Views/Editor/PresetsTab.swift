@@ -16,6 +16,7 @@ struct PresetsTab: View {
     private var presets: [PresetOption] {
         if isPortrait {
             [
+                PresetOption(name: "Full", zones: MonitorLayout.presetsFull()),
                 PresetOption(name: "Halves", zones: MonitorLayout.presetsPortraitHalves()),
                 PresetOption(name: "Thirds", zones: MonitorLayout.presetsPortraitThirds()),
                 PresetOption(name: "⅔ + ⅓", zones: MonitorLayout.presetsPortraitTwoThirdsOneThird()),
@@ -24,6 +25,7 @@ struct PresetsTab: View {
             ]
         } else {
             [
+                PresetOption(name: "Full", zones: MonitorLayout.presetsFull()),
                 PresetOption(name: "Halves", zones: MonitorLayout.presetsHalves()),
                 PresetOption(name: "Thirds", zones: MonitorLayout.presetsThirds()),
                 PresetOption(name: "⅔ + ⅓", zones: MonitorLayout.presetsTwoThirdsOneThird()),
