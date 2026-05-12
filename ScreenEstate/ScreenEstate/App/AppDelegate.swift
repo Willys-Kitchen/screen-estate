@@ -32,11 +32,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func observeIsEnabled(_ state: AppState) {
         withObservationTracking {
-            _ = state.settings.isEnabled
+            _ = state.isEnabled
         } onChange: { [weak self] in
             Task { @MainActor in
                 guard let self, let appState = self.appState else { return }
-                if appState.settings.isEnabled {
+                if appState.isEnabled {
                     self.startServices(appState: appState)
                 } else {
                     NSLog("Screen Estate: Disabled by user, stopping services.")

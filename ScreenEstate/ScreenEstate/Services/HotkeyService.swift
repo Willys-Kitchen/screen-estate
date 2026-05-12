@@ -35,7 +35,7 @@ class HotkeyService {
 
     private func handleKeyDown(_ event: NSEvent) {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        guard modifiers.contains(appState.settings.modifierKey.eventFlags) else { return }
+        guard modifiers.contains(appState.modifierKey.eventFlags) else { return }
 
         if let digit = Self.digitKeyCodes[Int(event.keyCode)] {
             if digit >= 1 && digit <= 9 {

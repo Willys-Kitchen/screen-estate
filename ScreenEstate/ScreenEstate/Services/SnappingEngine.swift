@@ -57,13 +57,10 @@ class SnappingEngine {
         cancelTracking()
     }
 
-    private var accentColor: Color {
-        let rgba = appState.settings.accentColorRGBA
-        return Color(red: rgba.red, green: rgba.green, blue: rgba.blue, opacity: rgba.alpha)
-    }
+    private var accentColor: Color { appState.accentColor }
 
     private func handleMouseDragged(_ event: NSEvent) {
-        guard appState.settings.isDragSnapEnabled else { return }
+        guard appState.isDragSnapEnabled else { return }
         guard event.modifierFlags.contains(.shift) else {
             if case .tracking = state {
                 cancelTracking()
@@ -86,7 +83,7 @@ class SnappingEngine {
             #endif
             state = .tracking(window: window)
             // Cache global zones once at tracking start
-            if let mode = appState.activeMode, mode.globalZones {
+            if let mode = appState.activeMode {
                 let displays = displayService.connectedDisplays()
                 cachedGlobalZones = GlobalZoneHelper.computeGlobalZones(displays: displays, mode: mode)
             }
@@ -122,7 +119,7 @@ class SnappingEngine {
     }
 
     private func handleFlagsChanged(_ event: NSEvent) {
-        guard appState.settings.isDragSnapEnabled else { return }
+        guard appState.isDragSnapEnabled else { return }
         if event.modifierFlags.contains(.shift) {
             // Shift pressed — cache the focused window now, before drag starts
             if case .idle = state {
@@ -163,9 +160,7 @@ class SnappingEngine {
         #endif
 
         // Use cached global zones if available, otherwise compute
-        let globalZonesData: [GlobalZoneHelper.GlobalZone]? = mode.globalZones
-            ? (cachedGlobalZones ?? GlobalZoneHelper.computeGlobalZones(displays: displays, mode: mode))
-            : nil
+        let globalZonesData = cachedGlobalZones ?? GlobalZoneHelper.computeGlobalZones(displays: displays, mode: mode)
 
         for display in displays {
             let zones = mode.layouts.first { $0.displayIdentifier == display.identifier }?.zones ?? []
@@ -173,12 +168,10 @@ class SnappingEngine {
             NSLog("Screen Estate: Display \(display.name) has \(zones.count) zones")
             #endif
 
-            let globalNumbers: [UUID: Int]? = globalZonesData.map { allZones in
-                Dictionary(uniqueKeysWithValues: allZones
-                    .filter { $0.displayIdentifier == display.identifier }
-                    .compactMap { gz in gz.globalNumber.map { (gz.zone.id, $0) } }
-                )
-            }
+            let globalNumbers: [UUID: Int] = Dictionary(uniqueKeysWithValues: globalZonesData
+                .filter { $0.displayIdentifier == display.identifier }
+                .compactMap { gz in gz.globalNumber.map { (gz.zone.id, $0) } }
+            )
 
             overlayManager.showOverlays(zones: zones, for: [display], activeZoneID: nil, accentColor: accentColor, globalNumbers: globalNumbers)
         }
@@ -190,9 +183,7 @@ class SnappingEngine {
         guard let mode = appState.activeMode else { return }
 
         // Use cached global zones if available, otherwise compute
-        let globalZonesData: [GlobalZoneHelper.GlobalZone]? = mode.globalZones
-            ? (cachedGlobalZones ?? GlobalZoneHelper.computeGlobalZones(displays: displays, mode: mode))
-            : nil
+        let globalZonesData = cachedGlobalZones ?? GlobalZoneHelper.computeGlobalZones(displays: displays, mode: mode)
 
         for display in displays {
             if display.frame.contains(cursorLocation) {
@@ -200,12 +191,10 @@ class SnappingEngine {
                 let hit = ZoneHitTester.hitTest(point: cursorLocation, zones: zones, screenFrame: display.frame)
                 activeZone = hit
 
-                let globalNumbers: [UUID: Int]? = globalZonesData.map { allZones in
-                    Dictionary(uniqueKeysWithValues: allZones
-                        .filter { $0.displayIdentifier == display.identifier }
-                        .compactMap { gz in gz.globalNumber.map { (gz.zone.id, $0) } }
-                    )
-                }
+                let globalNumbers: [UUID: Int] = Dictionary(uniqueKeysWithValues: globalZonesData
+                    .filter { $0.displayIdentifier == display.identifier }
+                    .compactMap { gz in gz.globalNumber.map { (gz.zone.id, $0) } }
+                )
 
                 overlayManager.showOverlays(zones: zones, for: [display], activeZoneID: hit?.id, accentColor: accentColor, globalNumbers: globalNumbers)
                 return
@@ -221,9 +210,8 @@ class SnappingEngine {
         for display in displays {
             let zones = mode.layouts.first { $0.displayIdentifier == display.identifier }?.zones ?? []
             if zones.contains(where: { $0.id == zone.id }) {
-                let absoluteFrame = zone.absoluteFrame(for: display.visibleFrame)
                 let primaryHeight = NSScreen.screens.first?.frame.height ?? display.frame.height
-                let axFrame = CoordinateConverter.toAccessibility(absoluteFrame, primaryScreenHeight: primaryHeight)
+                let axFrame = zone.accessibilityFrame(for: display.visibleFrame, primaryScreenHeight: primaryHeight)
                 #if DEBUG
                 NSLog("Screen Estate: Setting window frame to \(axFrame)")
                 #endif
@@ -281,83 +269,37 @@ class SnappingEngine {
         let displays = displayService.connectedDisplays()
         let primaryHeight = NSScreen.screens.first?.frame.height ?? 1080
 
-        // Global zones mode: find zone by global number across all monitors
-        if mode.globalZones {
-            #if DEBUG
-            NSLog("Screen Estate: Global zones mode - snapping to global zone \(number)")
-            #endif
-            guard let result = GlobalZoneHelper.findZoneByGlobalNumber(number, displays: displays, mode: mode) else {
-                NSLog("Screen Estate: No global zone with number \(number)")
-                return
-            }
-
-            let absoluteFrame = result.zone.absoluteFrame(for: result.display.visibleFrame)
-            let axFrame = CoordinateConverter.toAccessibility(absoluteFrame, primaryScreenHeight: primaryHeight)
-            #if DEBUG
-            NSLog("Screen Estate: Snapping to \(axFrame) on \(result.display.name)")
-            #endif
-            if !windowService.setWindowFrame(window, frame: axFrame) {
-                onSnapFailed?()
-            }
-
-            // Show overlay with global zone numbers
-            let globalZones = GlobalZoneHelper.computeGlobalZones(displays: displays, mode: mode)
-            let zonesOnDisplay = globalZones.filter { $0.displayIdentifier == result.display.identifier }
-            overlayManager.showOverlays(
-                zones: zonesOnDisplay.map { $0.zone },
-                for: [result.display],
-                activeZoneID: result.zone.id,
-                accentColor: accentColor,
-                globalNumbers: Dictionary(uniqueKeysWithValues: zonesOnDisplay.compactMap { gz in
-                    gz.globalNumber.map { (gz.zone.id, $0) }
-                })
-            )
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-                self?.overlayManager.hideOverlays()
-            }
-            return
-        }
-
-        // Per-monitor mode: find zone on the same display as the window
-        guard let position = windowService.getWindowPosition(window) else {
-            NSLog("Screen Estate: Can't get window position")
-            return
-        }
-
+        // Find zone by global number across all monitors
         #if DEBUG
-        NSLog("Screen Estate: Snapping focused window to zone \(number), window at \(position)")
+        NSLog("Screen Estate: Snapping to global zone \(number)")
         #endif
-
-        let nsPosition = CoordinateConverter.fromAccessibility(
-            CGRect(origin: position, size: .zero), primaryScreenHeight: primaryHeight
-        ).origin
-
-        for display in displays {
-            if display.frame.contains(nsPosition) {
-                let zones = mode.layouts.first { $0.displayIdentifier == display.identifier }?.zones ?? []
-                #if DEBUG
-                NSLog("Screen Estate: Found display \(display.name) with \(zones.count) zones")
-                #endif
-                if let zone = zones.first(where: { $0.number == number }) {
-                    let absoluteFrame = zone.absoluteFrame(for: display.visibleFrame)
-                    let axFrame = CoordinateConverter.toAccessibility(absoluteFrame, primaryScreenHeight: primaryHeight)
-                    #if DEBUG
-                    NSLog("Screen Estate: Snapping to \(axFrame)")
-                    #endif
-                    if !windowService.setWindowFrame(window, frame: axFrame) {
-                        onSnapFailed?()
-                    }
-
-                    overlayManager.showOverlays(zones: zones, for: [display], activeZoneID: zone.id, accentColor: accentColor)
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-                        self?.overlayManager.hideOverlays()
-                    }
-                } else {
-                    NSLog("Screen Estate: No zone with number \(number) on this display")
-                }
-                return
-            }
+        guard let result = GlobalZoneHelper.findZoneByGlobalNumber(number, displays: displays, mode: mode) else {
+            NSLog("Screen Estate: No global zone with number \(number)")
+            return
         }
-        NSLog("Screen Estate: Window position \(nsPosition) not on any known display")
+
+        let axFrame = result.zone.accessibilityFrame(for: result.display.visibleFrame, primaryScreenHeight: primaryHeight)
+        #if DEBUG
+        NSLog("Screen Estate: Snapping to \(axFrame) on \(result.display.name)")
+        #endif
+        if !windowService.setWindowFrame(window, frame: axFrame) {
+            onSnapFailed?()
+        }
+
+        // Show overlay with global zone numbers
+        let globalZones = GlobalZoneHelper.computeGlobalZones(displays: displays, mode: mode)
+        let zonesOnDisplay = globalZones.filter { $0.displayIdentifier == result.display.identifier }
+        overlayManager.showOverlays(
+            zones: zonesOnDisplay.map { $0.zone },
+            for: [result.display],
+            activeZoneID: result.zone.id,
+            accentColor: accentColor,
+            globalNumbers: Dictionary(uniqueKeysWithValues: zonesOnDisplay.compactMap { gz in
+                gz.globalNumber.map { (gz.zone.id, $0) }
+            })
+        )
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+            self?.overlayManager.hideOverlays()
+        }
     }
 }

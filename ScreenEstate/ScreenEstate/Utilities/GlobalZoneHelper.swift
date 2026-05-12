@@ -161,4 +161,48 @@ struct GlobalZoneHelper {
 
         return assignments
     }
+
+    // MARK: - Mode Mutation
+
+    /// Assigns a number (1-9) to a zone, removing that number from any other zone.
+    /// Passing nil clears the assignment for that zone.
+    /// Returns a new Mode with updated globalZoneAssignments.
+    static func assign(number: Int?, to zoneID: UUID, in mode: Mode) -> Mode {
+        var updatedMode = mode
+
+        // Initialize assignments if nil (switching from auto to manual mode)
+        if updatedMode.globalZoneAssignments == nil {
+            updatedMode.globalZoneAssignments = [:]
+        }
+
+        let zoneKey = zoneID.uuidString
+
+        if let number = number {
+            // Remove this number from any other zone first (no duplicates)
+            updatedMode.globalZoneAssignments = updatedMode.globalZoneAssignments?.filter { $0.value != number }
+            // Assign the number to this zone
+            updatedMode.globalZoneAssignments?[zoneKey] = number
+        } else {
+            // Clear assignment for this zone
+            updatedMode.globalZoneAssignments?.removeValue(forKey: zoneKey)
+        }
+
+        return updatedMode
+    }
+
+    /// Clears all zone assignments, switching back to automatic left-to-right numbering.
+    /// Returns a new Mode with globalZoneAssignments set to nil.
+    static func clearAssignments(in mode: Mode) -> Mode {
+        var updatedMode = mode
+        updatedMode.globalZoneAssignments = nil
+        return updatedMode
+    }
+
+    /// Clears to an empty dictionary (manual mode with no numbers shown).
+    /// Returns a new Mode with globalZoneAssignments set to empty dict.
+    static func clearToManualEmpty(in mode: Mode) -> Mode {
+        var updatedMode = mode
+        updatedMode.globalZoneAssignments = [:]
+        return updatedMode
+    }
 }

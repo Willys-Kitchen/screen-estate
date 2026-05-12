@@ -4,6 +4,7 @@ struct EditorWindow: View {
     @Bindable var appState: AppState
     let displayService: DisplayService
     let persistence: PersistenceService
+    @State private var editor: ModeEditor?
 
     @Environment(\.dismiss) private var dismiss
 
@@ -11,9 +12,6 @@ struct EditorWindow: View {
     @State private var selectedTab: EditorTab = .presets
     @State private var isEditingZoneOrder: Bool = false
 
-    // Dirty tracking — snapshot taken when the window appears
-    @State private var savedModes: [Mode] = []
-    @State private var savedSettings: AppSettings = .defaultSettings
     @State private var showSavedConfirmation = false
     @State private var showOnboardingBanner = false
 
@@ -28,45 +26,25 @@ struct EditorWindow: View {
     }
 
     private var hasChanges: Bool {
-        appState.modes != savedModes || appState.settings != savedSettings
+        editor?.hasChanges ?? false
     }
 
     private var currentZonesBinding: Binding<[Zone]> {
         Binding(
             get: {
-                guard let mode = appState.activeMode,
-                      selectedDisplayIndex < displays.count else { return [] }
+                guard selectedDisplayIndex < displays.count else { return [] }
                 let displayID = displays[selectedDisplayIndex].identifier
-                return mode.layouts.first { $0.displayIdentifier == displayID }?.zones ?? []
+                return editor?.zones(for: displayID) ?? []
             },
             set: { newZones in
                 guard selectedDisplayIndex < displays.count else { return }
                 let display = displays[selectedDisplayIndex]
-                ensureLayoutExists(for: display)
-                if let layoutIndex = appState.modes[appState.activeModeIndex].layouts
-                    .firstIndex(where: { $0.displayIdentifier == display.identifier }) {
-                    let oldZones = appState.modes[appState.activeModeIndex].layouts[layoutIndex].zones
-                    appState.modes[appState.activeModeIndex].layouts[layoutIndex].zones = newZones
-
-                    // Check if the zone set has changed (not just reordered)
-                    let oldZoneIDs = Set(oldZones.map { $0.id })
-                    let newZoneIDs = Set(newZones.map { $0.id })
-                    let zonesChanged = oldZoneIDs != newZoneIDs
-
-                    if zonesChanged {
-                        // Zones have changed (preset selected or grid modified) - reset to auto-numbering
-                        // Setting to nil enables automatic left-to-right zone numbering
-                        appState.modes[appState.activeModeIndex].globalZoneAssignments = nil
-                    }
-                }
+                editor?.setZones(newZones, for: display)
             }
         )
     }
 
-    private var accentColor: Color {
-        let rgba = appState.settings.accentColorRGBA
-        return Color(red: rgba.red, green: rgba.green, blue: rgba.blue, opacity: rgba.alpha)
-    }
+    private var accentColor: Color { appState.accentColor }
 
     private var currentDisplayAspectRatio: CGFloat {
         guard selectedDisplayIndex < displays.count else { return 16.0 / 9.0 }
@@ -392,8 +370,15 @@ struct EditorWindow: View {
         }
         .frame(minWidth: 600, minHeight: 500)
         .onAppear {
-            savedModes = appState.modes
-            savedSettings = appState.settings
+            // Initialize editor and snapshot current state
+            if editor == nil {
+                editor = ModeEditor(
+                    appState: appState,
+                    persistence: persistence,
+                    displays: { [displayService] in displayService.connectedDisplays() }
+                )
+            }
+            editor?.snapshotCurrent()
             // Show onboarding banner for first-time users
             if !appState.settings.hasSeenOnboarding {
                 showOnboardingBanner = true
@@ -402,61 +387,30 @@ struct EditorWindow: View {
     }
 
     private func resetConfig() {
-        appState.modes = savedModes
-        appState.settings = savedSettings
+        editor?.reset()
     }
 
     private func saveConfig() {
         do {
-            try persistence.save(appState.modes, to: .modes)
-            try persistence.save(appState.settings, to: .settings)
-            // Update snapshot so buttons disable again after save
-            savedModes = appState.modes
-            savedSettings = appState.settings
+            try editor?.save()
             withAnimation { showSavedConfirmation = true }
         } catch {
             NSLog("Screen Estate: Failed to save config: \(error)")
         }
     }
 
-    private func ensureLayoutExists(for display: DisplayInfo) {
-        let layouts = appState.modes[appState.activeModeIndex].layouts
-        if !layouts.contains(where: { $0.displayIdentifier == display.identifier }) {
-            let newLayout = MonitorLayout(
-                id: UUID(),
-                displayIdentifier: display.identifier,
-                displayName: display.name,
-                zones: MonitorLayout.presetsHalves()
-            )
-            appState.modes[appState.activeModeIndex].layouts.append(newLayout)
-        }
-    }
-
     private func handleZoneAssignment(zoneID: UUID, number: Int?) {
-        // Initialize assignments if nil (switching from auto to manual mode)
-        if appState.modes[appState.activeModeIndex].globalZoneAssignments == nil {
-            appState.modes[appState.activeModeIndex].globalZoneAssignments = [:]
-        }
-
-        let zoneKey = zoneID.uuidString
-
-        if let number = number {
-            // Remove this number from any other zone first (no duplicates)
-            appState.modes[appState.activeModeIndex].globalZoneAssignments = appState.modes[appState.activeModeIndex].globalZoneAssignments?.filter { $0.value != number }
-
-            // Assign the number to this zone
-            appState.modes[appState.activeModeIndex].globalZoneAssignments?[zoneKey] = number
-        } else {
-            // Clear assignment for this zone
-            appState.modes[appState.activeModeIndex].globalZoneAssignments?.removeValue(forKey: zoneKey)
-        }
+        appState.modes[appState.activeModeIndex] = GlobalZoneHelper.assign(
+            number: number,
+            to: zoneID,
+            in: appState.modes[appState.activeModeIndex]
+        )
     }
 
     private func autoFillZones(order: GlobalZoneHelper.FillOrder) {
-        let currentAssignments = appState.modes[appState.activeModeIndex].globalZoneAssignments
         let mode = appState.modes[appState.activeModeIndex]
         let filledAssignments = GlobalZoneHelper.autoFillAssignments(
-            currentAssignments: currentAssignments,
+            currentAssignments: mode.globalZoneAssignments,
             displays: displays,
             mode: mode,
             order: order
@@ -465,11 +419,14 @@ struct EditorWindow: View {
     }
 
     private func clearZoneAssignments() {
-        appState.modes[appState.activeModeIndex].globalZoneAssignments = nil
+        appState.modes[appState.activeModeIndex] = GlobalZoneHelper.clearAssignments(
+            in: appState.modes[appState.activeModeIndex]
+        )
     }
 
     private func clearAllZoneNumbers() {
-        // Set to empty dictionary - manual mode with no assignments (no numbers shown)
-        appState.modes[appState.activeModeIndex].globalZoneAssignments = [:]
+        appState.modes[appState.activeModeIndex] = GlobalZoneHelper.clearToManualEmpty(
+            in: appState.modes[appState.activeModeIndex]
+        )
     }
 }
