@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		MDED1A2B3C4D5E6F7G8H9I0J /* ModeEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDED9I8H7G6F5E4D3C2B1A0Z /* ModeEditor.swift */; };
+		GZHT1A2B3C4D5E6F7G8H9I0J /* GlobalZoneHelperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = GZHT9I8H7G6F5E4D3C2B1A0Z /* GlobalZoneHelperTests.swift */; };
 		1639A31397F84DC69A49986F /* GlobalZoneHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D41DBE84C1C4A83A9F4C5E8 /* GlobalZoneHelper.swift */; };
 		E4A1AF9D6DCB4B8C9E5B0791 /* MultiMonitorOverview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63B13C09B4F647BFB01231CF /* MultiMonitorOverview.swift */; };
 		DSGN5Y5T3M1F8N2K4B7C9A0E /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = DSGN1A2B3C4D5E6F7G8H9I0J /* DesignSystem.swift */; };
@@ -102,6 +104,8 @@
 		F202A5A744FA04597D038735 /* EditorWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorWindow.swift; sourceTree = "<group>"; };
 		F5E47D76A81B2BA31028054F /* OverlayWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayWindow.swift; sourceTree = "<group>"; };
 		FCAB9D6D78CE4E3209AEECEC /* SnappingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnappingEngine.swift; sourceTree = "<group>"; };
+		GZHT9I8H7G6F5E4D3C2B1A0Z /* GlobalZoneHelperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalZoneHelperTests.swift; sourceTree = "<group>"; };
+		MDED9I8H7G6F5E4D3C2B1A0Z /* ModeEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModeEditor.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -189,6 +193,7 @@
 				6E5569E72D18DE674671A505 /* AppState.swift */,
 				52E671B4D5C9C947473687D3 /* GridEditor.swift */,
 				650EC6601A84E9C7A27C5126 /* Mode.swift */,
+				MDED9I8H7G6F5E4D3C2B1A0Z /* ModeEditor.swift */,
 				54B3D205027BDDDA28862841 /* MonitorLayout.swift */,
 				EFA266439572FE3BB24F4C32 /* Zone.swift */,
 			);
@@ -224,6 +229,7 @@
 			children = (
 				8B0FD9C02D64B4E02DED7900 /* CoordinateConverterTests.swift */,
 				CB19AF4AB43A0BD00A354B2D /* DisplayServiceTests.swift */,
+				GZHT9I8H7G6F5E4D3C2B1A0Z /* GlobalZoneHelperTests.swift */,
 				A2C9F44821874340C79500D5 /* GridEditorTests.swift */,
 				8D4F48781A4F1E6A014ABFA8 /* ModeTests.swift */,
 				1182B1330F09E9E8973F156C /* MonitorLayoutTests.swift */,
@@ -325,6 +331,7 @@
 			files = (
 				59FBFFD8CB5B51F6312742F1 /* CoordinateConverterTests.swift in Sources */,
 				25FC05F1BDC824706B2DA830 /* DisplayServiceTests.swift in Sources */,
+				GZHT1A2B3C4D5E6F7G8H9I0J /* GlobalZoneHelperTests.swift in Sources */,
 				AD242AF00E3D595D9A950432 /* GridEditorTests.swift in Sources */,
 				E3F0640E8F0731044C02FF5B /* ModeTests.swift in Sources */,
 				B1A38F28A16DA91473C12EC3 /* MonitorLayoutTests.swift in Sources */,
@@ -353,6 +360,7 @@
 				27F109D42E7F55450A8D80C7 /* KeyRecorderView.swift in Sources */,
 				41960CDCCA6C99FBA3D1189D /* MenuBarView.swift in Sources */,
 				613E14C474C26F55DD801FF6 /* Mode.swift in Sources */,
+				MDED1A2B3C4D5E6F7G8H9I0J /* ModeEditor.swift in Sources */,
 				9361880E46AE4331164D9DCA /* ModeManager.swift in Sources */,
 				666E9E04F8D3B7FF905ED977 /* MonitorLayout.swift in Sources */,
 				9A8F3CDEEDF4FBA5433D2649 /* MonitorSelector.swift in Sources */,

@@ -15,4 +15,16 @@ struct Zone: Identifiable, Codable, Hashable {
             height: proportionalFrame.height * screenFrame.height
         )
     }
+
+    /// Converts proportional frame to Accessibility API coordinates (y=0 at top of primary screen).
+    /// Use this when setting window frames via AXUIElement.
+    func accessibilityFrame(for screenFrame: CGRect, primaryScreenHeight: CGFloat) -> CGRect {
+        let absolute = absoluteFrame(for: screenFrame)
+        return CGRect(
+            x: absolute.origin.x,
+            y: primaryScreenHeight - absolute.origin.y - absolute.height,
+            width: absolute.width,
+            height: absolute.height
+        )
+    }
 }

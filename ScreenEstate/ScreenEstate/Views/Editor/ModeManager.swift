@@ -7,10 +7,7 @@ struct ModeManager: View {
     @State private var showingModeHelp: Bool = false
     @FocusState private var isNameFieldFocused: Bool
 
-    private var accentColor: Color {
-        let rgba = appState.settings.accentColorRGBA
-        return Color(red: rgba.red, green: rgba.green, blue: rgba.blue, opacity: rgba.alpha)
-    }
+    private var accentColor: Color { appState.accentColor }
 
     var body: some View {
         HStack(spacing: DesignTokens.space3) {

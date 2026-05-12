@@ -1,8 +1,15 @@
 import AppKit
 import SwiftUI
 
+/// Protocol for overlay presentation. Allows testing without real windows.
 @MainActor
-class OverlayManager {
+protocol OverlayPresenting {
+    func showOverlays(zones: [Zone], for displays: [DisplayInfo], activeZoneID: UUID?, accentColor: Color, globalNumbers: [UUID: Int]?)
+    func hideOverlays()
+}
+
+@MainActor
+class OverlayManager: OverlayPresenting {
     private struct OverlayEntry {
         let window: OverlayWindow
         let state: OverlayState
