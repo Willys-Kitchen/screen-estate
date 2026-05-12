@@ -1,7 +1,16 @@
 import AppKit
 import ApplicationServices
 
-class WindowManipulationService {
+/// Protocol for window manipulation operations. Allows testing without real accessibility APIs.
+protocol WindowManipulating {
+    func getFocusedWindow() -> AXUIElement?
+    func isWindowValid(_ window: AXUIElement) -> Bool
+    func isFullscreen(_ window: AXUIElement) -> Bool
+    func exitFullscreen(_ window: AXUIElement) -> Bool
+    @discardableResult func setWindowFrame(_ window: AXUIElement, frame: CGRect) -> Bool
+}
+
+class WindowManipulationService: WindowManipulating {
 
     /// Check if accessibility is trusted, optionally prompting the user.
     static func checkAccessibility(prompt: Bool = false) -> Bool {

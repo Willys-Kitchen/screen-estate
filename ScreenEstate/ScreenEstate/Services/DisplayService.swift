@@ -1,6 +1,11 @@
 import AppKit
 import CoreGraphics
 
+/// Protocol for querying display information. Allows testing without real screens.
+protocol DisplayQuerying {
+    func connectedDisplays() -> [DisplayInfo]
+}
+
 struct DisplayInfo {
     let identifier: String
     let name: String
@@ -8,7 +13,7 @@ struct DisplayInfo {
     let visibleFrame: CGRect
 }
 
-class DisplayService {
+class DisplayService: DisplayQuerying {
     private var screenChangeObserver: NSObjectProtocol?
 
     static func makeIdentifier(vendor: UInt32, model: UInt32, serial: UInt32, displayID: CGDirectDisplayID? = nil) -> String {

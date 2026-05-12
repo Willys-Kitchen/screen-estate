@@ -4,8 +4,13 @@ import CoreGraphics
 struct GridEditor {
     var rows: Int
     var columns: Int
-    var cells: [[Int]] // Each value is a zone group ID
+    private(set) var cells: [[Int]] // Each value is a zone group ID
     private var nextGroupID: Int
+
+    /// Get the group ID at a specific cell coordinate.
+    func groupID(at row: Int, col: Int) -> Int {
+        cells[row][col]
+    }
 
     init(rows: Int, columns: Int) {
         self.rows = rows

@@ -25,8 +25,8 @@ struct GridTab: View {
     private var selectedRange: (minRow: Int, maxRow: Int, minCol: Int, maxCol: Int)? {
         guard let start = selectionStart, let end = selectionEnd else { return nil }
         // Expand to cover full group bounding boxes for both endpoints
-        let startGroup = grid.cells[start.row][start.col]
-        let endGroup = grid.cells[end.row][end.col]
+        let startGroup = grid.groupID(at: start.row, col: start.col)
+        let endGroup = grid.groupID(at: end.row, col: end.col)
         let sb = bounds(ofGroup: startGroup)
         let eb = bounds(ofGroup: endGroup)
         return (min(sb.minRow, eb.minRow), max(sb.maxRow, eb.maxRow),
@@ -46,7 +46,7 @@ struct GridTab: View {
         var result: [Int] = []
         for r in 0..<grid.rows {
             for c in 0..<grid.columns {
-                let g = grid.cells[r][c]
+                let g = grid.groupID(at: r, col: c)
                 if seen.insert(g).inserted { result.append(g) }
             }
         }
@@ -62,7 +62,7 @@ struct GridTab: View {
         var minR = grid.rows, maxR = 0, minC = grid.columns, maxC = 0
         for r in 0..<grid.rows {
             for c in 0..<grid.columns {
-                if grid.cells[r][c] == groupID {
+                if grid.groupID(at: r, col: c) == groupID {
                     minR = min(minR, r); maxR = max(maxR, r)
                     minC = min(minC, c); maxC = max(maxC, c)
                 }
@@ -104,7 +104,7 @@ struct GridTab: View {
 
         if isCtrlClick {
             // Ctrl+click: split vertically (horizontal line)
-            let groupID = grid.cells[row][col]
+            let groupID = grid.groupID(at: row, col: col)
             pushHistory()
             grid.splitVertically(groupID: groupID)
             zones = grid.toZones()
@@ -132,7 +132,7 @@ struct GridTab: View {
 
     private func handleDoubleTap(row: Int, col: Int) {
         // Double-click: split horizontally (vertical line)
-        let groupID = grid.cells[row][col]
+        let groupID = grid.groupID(at: row, col: col)
         pushHistory()
         grid.splitHorizontally(groupID: groupID)
         zones = grid.toZones()
@@ -406,7 +406,7 @@ struct GridTab: View {
     @ViewBuilder
     private func anchorOverlay(cellW: CGFloat, cellH: CGFloat, gap: CGFloat) -> some View {
         if selectedRange == nil, let s = selectionStart {
-            let groupID = grid.cells[s.row][s.col]
+            let groupID = grid.groupID(at: s.row, col: s.col)
             let b = bounds(ofGroup: groupID)
             let x = CGFloat(b.minCol) * cellW + gap / 2
             let y = CGFloat(b.minRow) * cellH + gap / 2

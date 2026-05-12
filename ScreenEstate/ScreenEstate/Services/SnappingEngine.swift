@@ -9,9 +9,9 @@ class SnappingEngine {
     }
 
     private var state: State = .idle
-    private let windowService = WindowManipulationService()
-    private let displayService = DisplayService()
-    private let overlayManager = OverlayManager()
+    private let windowService: WindowManipulating
+    private let displayService: DisplayQuerying
+    private let overlayManager: OverlayPresenting
     private var appState: AppState
     private var activeZone: Zone?
     private var cachedWindow: AXUIElement? // Captured when Shift is pressed
@@ -20,8 +20,17 @@ class SnappingEngine {
     private var monitors: [Any] = []
     var onSnapFailed: (() -> Void)?
 
-    init(appState: AppState, onSnapFailed: (() -> Void)? = nil) {
+    init(
+        appState: AppState,
+        windowService: WindowManipulating = WindowManipulationService(),
+        displayService: DisplayQuerying = DisplayService(),
+        overlayManager: OverlayPresenting = OverlayManager(),
+        onSnapFailed: (() -> Void)? = nil
+    ) {
         self.appState = appState
+        self.windowService = windowService
+        self.displayService = displayService
+        self.overlayManager = overlayManager
         self.onSnapFailed = onSnapFailed
     }
 
