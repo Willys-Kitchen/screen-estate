@@ -56,18 +56,42 @@ struct PresetsTab: View {
         }
     }
 
-    private func optimalColumnCount(availableW: CGFloat, availableH: CGFloat, spacing: CGFloat) -> Int {
+    /// For landscape: derive card height from width. For portrait: derive card width from height.
+    private func computeGridLayout(availableW: CGFloat, availableH: CGFloat, spacing: CGFloat) -> (cols: Int, cardW: CGFloat, cardH: CGFloat) {
         let count = presets.count
-        for cols in 1...count {
-            let rows = Int(ceil(Double(count) / Double(cols)))
-            let cardW = (availableW - spacing * CGFloat(cols - 1)) / CGFloat(cols)
-            let cardH = cardW / aspectRatio
-            let totalH = CGFloat(rows) * cardH + CGFloat(rows - 1) * spacing
-            if totalH <= availableH {
-                return cols
+
+        if isPortrait {
+            // Portrait: start from height constraint, derive width
+            // Try increasing row counts until the cards fit horizontally
+            for rows in 1...count {
+                let cols = Int(ceil(Double(count) / Double(rows)))
+                let cardH = (availableH - spacing * CGFloat(rows - 1)) / CGFloat(rows)
+                let cardW = cardH * aspectRatio
+                let totalW = CGFloat(cols) * cardW + CGFloat(cols - 1) * spacing
+                if totalW <= availableW {
+                    return (cols, cardW, cardH)
+                }
             }
+            // Fallback: fit all in one row, constrained by width
+            let cardW = (availableW - spacing * CGFloat(count - 1)) / CGFloat(count)
+            let cardH = cardW / aspectRatio
+            return (count, cardW, cardH)
+        } else {
+            // Landscape: start from width constraint, derive height
+            for cols in 1...count {
+                let rows = Int(ceil(Double(count) / Double(cols)))
+                let cardW = (availableW - spacing * CGFloat(cols - 1)) / CGFloat(cols)
+                let cardH = cardW / aspectRatio
+                let totalH = CGFloat(rows) * cardH + CGFloat(rows - 1) * spacing
+                if totalH <= availableH {
+                    return (cols, cardW, cardH)
+                }
+            }
+            // Fallback
+            let cardW = (availableW - spacing * CGFloat(count - 1)) / CGFloat(count)
+            let cardH = cardW / aspectRatio
+            return (count, cardW, cardH)
         }
-        return count
     }
 
     private func presetsGrid(in size: CGSize) -> some View {
@@ -76,33 +100,37 @@ struct PresetsTab: View {
         let headlineH: CGFloat = 28 + spacing
         let availableW = size.width - pad * 2
         let availableH = size.height - pad * 2 - headlineH
-        let numCols = optimalColumnCount(availableW: availableW, availableH: availableH, spacing: spacing)
+        let layout = computeGridLayout(availableW: availableW, availableH: availableH, spacing: spacing)
 
         return VStack(alignment: .leading, spacing: DesignTokens.space4) {
             SectionHeader("Choose a preset layout")
 
             LazyVGrid(
-                columns: Array(repeating: GridItem(.flexible(), spacing: spacing), count: numCols),
+                columns: Array(repeating: GridItem(.fixed(layout.cardW), spacing: spacing), count: layout.cols),
                 spacing: spacing
             ) {
                 ForEach(presets) { preset in
-                    presetCard(preset)
+                    presetCard(preset, cardSize: CGSize(width: layout.cardW, height: layout.cardH))
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .center)
         }
         .padding(pad)
     }
 
-    private func presetCard(_ preset: PresetOption) -> some View {
+    private func presetCard(_ preset: PresetOption, cardSize: CGSize) -> some View {
         let selected = isSelected(preset)
+        // Reserve space for label below preview
+        let labelHeight: CGFloat = 20
+        let previewHeight = max(cardSize.height - labelHeight - DesignTokens.space2, 20)
 
         return Button {
             zones = preset.zones
         } label: {
             VStack(spacing: DesignTokens.space2) {
-                // Zone preview
+                // Zone preview with fixed size
                 ZonePreview(zones: preset.zones, accentColor: accentColor, aspectRatio: aspectRatio)
-                    .aspectRatio(aspectRatio, contentMode: .fit)
+                    .frame(width: cardSize.width, height: previewHeight)
                     .clipShape(RoundedRectangle(cornerRadius: DesignTokens.radiusMedium))
                     .overlay(
                         RoundedRectangle(cornerRadius: DesignTokens.radiusMedium)
@@ -124,6 +152,7 @@ struct PresetsTab: View {
                             .foregroundColor(accentColor)
                     }
                 }
+                .frame(height: labelHeight)
             }
         }
         .buttonStyle(.plain)
