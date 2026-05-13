@@ -124,36 +124,43 @@ struct EditorWindow: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .frame(height: 36) // Fixed header height to match right panel
 
-                    // Zone preview container
-                    ZStack {
-                        RoundedRectangle(cornerRadius: DesignTokens.radiusMedium)
-                            .fill(AppColors.backgroundElevated)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: DesignTokens.radiusMedium)
-                                    .strokeBorder(AppColors.borderSubtle, lineWidth: DesignTokens.borderThin)
-                            )
+                    // Zone preview container - centered with correct aspect ratio
+                    HStack {
+                        Spacer()
+                        ZStack {
+                            RoundedRectangle(cornerRadius: DesignTokens.radiusMedium)
+                                .fill(AppColors.backgroundElevated)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: DesignTokens.radiusMedium)
+                                        .strokeBorder(AppColors.borderSubtle, lineWidth: DesignTokens.borderThin)
+                                )
 
-                        if currentZonesBinding.wrappedValue.isEmpty {
-                            // Empty mode guidance
-                            VStack(spacing: DesignTokens.space2) {
-                                Image(systemName: "rectangle.3.group")
-                                    .font(.system(size: 28))
-                                    .foregroundColor(AppColors.textTertiary)
-                                Text("No zones configured")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(AppColors.textSecondary)
-                                Text("Choose a preset below or draw a custom grid")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(AppColors.textTertiary)
+                            if currentZonesBinding.wrappedValue.isEmpty {
+                                // Empty mode guidance
+                                VStack(spacing: DesignTokens.space2) {
+                                    Image(systemName: "rectangle.3.group")
+                                        .font(.system(size: 28))
+                                        .foregroundColor(AppColors.textTertiary)
+                                    Text("No zones configured")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundColor(AppColors.textSecondary)
+                                    Text("Choose a preset below or draw a custom grid")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(AppColors.textTertiary)
+                                }
+                            } else {
+                                ZonePreview(
+                                    zones: currentZonesBinding.wrappedValue,
+                                    accentColor: accentColor,
+                                    aspectRatio: currentDisplayAspectRatio,
+                                    showNumbers: true
+                                )
+                                .padding(DesignTokens.space3)
                             }
-                        } else {
-                            ZonePreview(
-                                zones: currentZonesBinding.wrappedValue,
-                                accentColor: accentColor,
-                                aspectRatio: currentDisplayAspectRatio
-                            )
-                            .padding(DesignTokens.space3)
                         }
+                        .aspectRatio(currentDisplayAspectRatio, contentMode: .fit)
+                        .frame(maxHeight: previewBoxHeight)
+                        Spacer()
                     }
                     .frame(height: previewBoxHeight)
                 }

@@ -21,7 +21,6 @@ struct ZonePreview: View {
                 }
             }
         }
-        .aspectRatio(aspectRatio, contentMode: .fit)
     }
 
     private func zoneCell(zone: Zone, in size: CGSize) -> some View {
