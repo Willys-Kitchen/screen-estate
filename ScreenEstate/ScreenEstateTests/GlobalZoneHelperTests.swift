@@ -164,4 +164,77 @@ final class GlobalZoneHelperTests: XCTestCase {
         // Then: back to auto mode (nil)
         XCTAssertNil(mode.globalZoneAssignments)
     }
+
+    func testAutoFillLeftToRightMatchesAutoNumbering() {
+        // Given: 2 displays with 2 zones each in auto-numbering mode
+        let displays = twoDisplays()
+        let mode = modeWithFourZones()
+
+        // Get the auto-numbering result
+        let autoGlobalZones = GlobalZoneHelper.computeGlobalZones(displays: displays, mode: mode)
+        let autoNumbers = Dictionary(uniqueKeysWithValues: autoGlobalZones.compactMap { gz in
+            gz.globalNumber.map { (gz.zone.id.uuidString, $0) }
+        })
+
+        // When: using autoFillAssignments with leftToRight order starting from empty
+        let filledAssignments = GlobalZoneHelper.autoFillAssignments(
+            currentAssignments: nil,
+            displays: displays,
+            mode: mode,
+            order: .leftToRight
+        )
+
+        // Then: the filled assignments match auto-numbering
+        // This ensures clicking "Fill →" in the UI produces the same result as auto mode
+        XCTAssertEqual(filledAssignments, autoNumbers,
+            "autoFillAssignments(leftToRight) should match computeGlobalZones auto-numbering")
+    }
+
+    func testAutoFillWithStackedDisplays() {
+        // Given: 2 displays stacked vertically (same X, different Y)
+        let stackedDisplays = [
+            DisplayInfo(
+                identifier: "top-display",
+                name: "Top",
+                frame: CGRect(x: 0, y: 1080, width: 1920, height: 1080),  // Higher Y = higher on screen
+                visibleFrame: CGRect(x: 0, y: 1080, width: 1920, height: 1055)
+            ),
+            DisplayInfo(
+                identifier: "bottom-display",
+                name: "Bottom",
+                frame: CGRect(x: 0, y: 0, width: 1920, height: 1080),
+                visibleFrame: CGRect(x: 0, y: 0, width: 1920, height: 1055)
+            ),
+        ]
+
+        let topZone = Zone(id: UUID(), number: 1, proportionalFrame: CGRect(x: 0, y: 0, width: 1, height: 1))
+        let bottomZone = Zone(id: UUID(), number: 1, proportionalFrame: CGRect(x: 0, y: 0, width: 1, height: 1))
+
+        let mode = Mode(
+            id: UUID(),
+            name: "Stacked",
+            layouts: [
+                MonitorLayout(id: UUID(), displayIdentifier: "top-display", displayName: "Top", zones: [topZone]),
+                MonitorLayout(id: UUID(), displayIdentifier: "bottom-display", displayName: "Bottom", zones: [bottomZone]),
+            ]
+        )
+
+        // Get auto-numbering
+        let autoGlobalZones = GlobalZoneHelper.computeGlobalZones(displays: stackedDisplays, mode: mode)
+
+        // Get fill result
+        let filledAssignments = GlobalZoneHelper.autoFillAssignments(
+            currentAssignments: nil,
+            displays: stackedDisplays,
+            mode: mode,
+            order: .leftToRight
+        )
+
+        // Both should number the bottom display zone first (lower Y)
+        let bottomAutoNumber = autoGlobalZones.first { $0.displayIdentifier == "bottom-display" }?.globalNumber
+        let bottomFillNumber = filledAssignments[bottomZone.id.uuidString]
+
+        XCTAssertEqual(bottomAutoNumber, bottomFillNumber,
+            "Stacked displays: auto mode and fill should number bottom display the same way")
+    }
 }
