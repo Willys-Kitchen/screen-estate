@@ -127,19 +127,21 @@ struct GlobalZoneHelper {
         var availableNumbers = (1...9).filter { !usedNumbers.contains($0) }
 
         // Sort displays based on order
+        // Note: Must match computeGlobalZones sorting for leftToRight to preserve auto-mode numbering
         let sortedDisplays: [DisplayInfo]
         switch order {
         case .leftToRight:
+            // Match computeGlobalZones: left-to-right, then top-to-bottom as tiebreaker
             sortedDisplays = displays.sorted { a, b in
                 if a.frame.origin.x != b.frame.origin.x {
                     return a.frame.origin.x < b.frame.origin.x
                 }
-                return a.frame.origin.y > b.frame.origin.y // Higher Y = higher on screen in macOS
+                return a.frame.origin.y < b.frame.origin.y
             }
         case .topToBottom:
             sortedDisplays = displays.sorted { a, b in
                 if a.frame.origin.y != b.frame.origin.y {
-                    return a.frame.origin.y > b.frame.origin.y // Higher Y = higher on screen in macOS
+                    return a.frame.origin.y < b.frame.origin.y
                 }
                 return a.frame.origin.x < b.frame.origin.x
             }
