@@ -8,6 +8,8 @@ protocol WindowManipulating {
     func isFullscreen(_ window: AXUIElement) -> Bool
     func exitFullscreen(_ window: AXUIElement) -> Bool
     @discardableResult func setWindowFrame(_ window: AXUIElement, frame: CGRect) -> Bool
+    @discardableResult func raiseWindow(_ window: AXUIElement) -> Bool
+    @discardableResult func activateOwningApp(_ window: AXUIElement) -> Bool
 }
 
 class WindowManipulationService: WindowManipulating {
@@ -190,6 +192,40 @@ class WindowManipulationService: WindowManipulating {
         }
 
         return success
+    }
+
+    /// Raise the window to the front of its app's window stack.
+    @discardableResult
+    func raiseWindow(_ window: AXUIElement) -> Bool {
+        let result = AXUIElementPerformAction(window, kAXRaiseAction as CFString)
+        if result != .success {
+            NSLog("Screen Estate [AX]: Failed to raise window: \(describeAXError(result))")
+            return false
+        }
+        return true
+    }
+
+    /// Activate the app that owns this window, giving it keyboard focus.
+    @discardableResult
+    func activateOwningApp(_ window: AXUIElement) -> Bool {
+        var pid: pid_t = 0
+        let pidResult = AXUIElementGetPid(window, &pid)
+        if pidResult != .success {
+            NSLog("Screen Estate [AX]: Failed to get PID from window: \(describeAXError(pidResult))")
+            return false
+        }
+
+        guard let app = NSRunningApplication(processIdentifier: pid) else {
+            NSLog("Screen Estate [AX]: No running application for PID \(pid)")
+            return false
+        }
+
+        let activated = app.activate()
+        if !activated {
+            NSLog("Screen Estate [AX]: Failed to activate app \(app.localizedName ?? "unknown")")
+            return false
+        }
+        return true
     }
 
     private func describeAXError(_ error: AXError) -> String {

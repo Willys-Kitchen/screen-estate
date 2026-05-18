@@ -227,6 +227,9 @@ class SnappingEngine {
                 if !windowService.setWindowFrame(window, frame: axFrame) {
                     onSnapFailed?()
                 }
+                // Raise window and activate owning app (best-effort, failures are silent)
+                windowService.raiseWindow(window)
+                windowService.activateOwningApp(window)
                 return
             }
         }
@@ -294,6 +297,10 @@ class SnappingEngine {
         if !windowService.setWindowFrame(window, frame: axFrame) {
             onSnapFailed?()
         }
+
+        // Raise window and activate owning app (best-effort, failures are silent)
+        windowService.raiseWindow(window)
+        windowService.activateOwningApp(window)
 
         // Show overlay with global zone numbers
         let globalZones = GlobalZoneHelper.computeGlobalZones(displays: displays, mode: mode)

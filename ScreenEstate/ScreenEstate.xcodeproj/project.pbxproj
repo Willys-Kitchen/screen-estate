@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		MDED1A2B3C4D5E6F7G8H9I0J /* ModeEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDED9I8H7G6F5E4D3C2B1A0Z /* ModeEditor.swift */; };
 		GZHT1A2B3C4D5E6F7G8H9I0J /* GlobalZoneHelperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = GZHT9I8H7G6F5E4D3C2B1A0Z /* GlobalZoneHelperTests.swift */; };
+		SNAP5Y5T3M1F8N2K4B7C9A0E /* SnappingEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SNAP1A2B3C4D5E6F7G8H9I0J /* SnappingEngineTests.swift */; };
 		1639A31397F84DC69A49986F /* GlobalZoneHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0D41DBE84C1C4A83A9F4C5E8 /* GlobalZoneHelper.swift */; };
 		E4A1AF9D6DCB4B8C9E5B0791 /* MultiMonitorOverview.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63B13C09B4F647BFB01231CF /* MultiMonitorOverview.swift */; };
 		DSGN5Y5T3M1F8N2K4B7C9A0E /* DesignSystem.swift in Sources */ = {isa = PBXBuildFile; fileRef = DSGN1A2B3C4D5E6F7G8H9I0J /* DesignSystem.swift */; };
@@ -106,6 +107,7 @@
 		FCAB9D6D78CE4E3209AEECEC /* SnappingEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnappingEngine.swift; sourceTree = "<group>"; };
 		GZHT9I8H7G6F5E4D3C2B1A0Z /* GlobalZoneHelperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalZoneHelperTests.swift; sourceTree = "<group>"; };
 		MDED9I8H7G6F5E4D3C2B1A0Z /* ModeEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModeEditor.swift; sourceTree = "<group>"; };
+		SNAP1A2B3C4D5E6F7G8H9I0J /* SnappingEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnappingEngineTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -235,6 +237,7 @@
 				1182B1330F09E9E8973F156C /* MonitorLayoutTests.swift */,
 				4AAB013F605B9B4E3A3B605E /* PersistenceServiceTests.swift */,
 				34AC41CE6802ED0EBBD0EC70 /* ScreenEstateTests.swift */,
+				SNAP1A2B3C4D5E6F7G8H9I0J /* SnappingEngineTests.swift */,
 				EC2577A4F7B05D2B722D93C6 /* ZoneTests.swift */,
 			);
 			path = ScreenEstateTests;
@@ -337,6 +340,7 @@
 				B1A38F28A16DA91473C12EC3 /* MonitorLayoutTests.swift in Sources */,
 				020EF6D827F2BEFC1B4DCAB3 /* PersistenceServiceTests.swift in Sources */,
 				2CA9D86181EBB86F5C43C909 /* ScreenEstateTests.swift in Sources */,
+				SNAP5Y5T3M1F8N2K4B7C9A0E /* SnappingEngineTests.swift in Sources */,
 				4332ED001C7443C6DED03AD6 /* ZoneTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
