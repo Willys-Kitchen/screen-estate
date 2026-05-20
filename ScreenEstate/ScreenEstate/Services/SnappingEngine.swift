@@ -259,9 +259,15 @@ class SnappingEngine {
             NSLog("Screen Estate: Window is fullscreen, exiting before snap")
             #endif
             if windowService.exitFullscreen(window) {
-                // Wait for fullscreen exit animation (~0.5s), then snap
+                // Wait for fullscreen exit animation (~0.5s), then re-fetch window and snap
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                    self?.performSnap(window: window, toZoneNumber: number)
+                    guard let self else { return }
+                    // Re-fetch focused window — the original reference may be stale after fullscreen exit
+                    guard let freshWindow = self.windowService.getFocusedWindow() else {
+                        NSLog("Screen Estate: Lost window reference after fullscreen exit")
+                        return
+                    }
+                    self.performSnap(window: freshWindow, toZoneNumber: number)
                 }
                 return
             }
@@ -296,11 +302,15 @@ class SnappingEngine {
         #endif
         if !windowService.setWindowFrame(window, frame: axFrame) {
             onSnapFailed?()
+            return
         }
 
         // Raise window and activate owning app (best-effort, failures are silent)
-        windowService.raiseWindow(window)
-        windowService.activateOwningApp(window)
+        // Only proceed if window is still valid after move
+        if windowService.isWindowValid(window) {
+            windowService.raiseWindow(window)
+            windowService.activateOwningApp(window)
+        }
 
         // Show overlay with global zone numbers
         let globalZones = GlobalZoneHelper.computeGlobalZones(displays: displays, mode: mode)
