@@ -6,6 +6,8 @@ import SwiftUI
 protocol OverlayPresenting {
     func showOverlays(zones: [Zone], for displays: [DisplayInfo], activeZoneID: UUID?, accentColor: Color, globalNumbers: [UUID: Int]?)
     func hideOverlays()
+    func showCurtain(message: String, on display: DisplayInfo, accentColor: Color)
+    func fadeOutCurtain(duration: TimeInterval)
 }
 
 @MainActor
@@ -17,20 +19,24 @@ class OverlayManager: OverlayPresenting {
 
     private var overlayEntries: [String: OverlayEntry] = [:]
     private var flashWindow: OverlayWindow?
+    private var curtainWindow: OverlayWindow?
+
+    private func screen(for display: DisplayInfo) -> NSScreen? {
+        NSScreen.screens.first { screen in
+            guard let screenNumber = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else { return false }
+            let id = DisplayService.makeIdentifier(
+                vendor: CGDisplayVendorNumber(screenNumber),
+                model: CGDisplayModelNumber(screenNumber),
+                serial: CGDisplaySerialNumber(screenNumber),
+                displayID: screenNumber
+            )
+            return id == display.identifier
+        }
+    }
 
     func showOverlays(zones: [Zone], for displays: [DisplayInfo], activeZoneID: UUID?, accentColor: Color, globalNumbers: [UUID: Int]? = nil) {
         for display in displays {
-            let screen = NSScreen.screens.first { screen in
-                guard let screenNumber = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID else { return false }
-                let id = DisplayService.makeIdentifier(
-                    vendor: CGDisplayVendorNumber(screenNumber),
-                    model: CGDisplayModelNumber(screenNumber),
-                    serial: CGDisplaySerialNumber(screenNumber),
-                    displayID: screenNumber
-                )
-                return id == display.identifier
-            }
-            guard let screen else { continue }
+            guard let screen = screen(for: display) else { continue }
 
             let displayZones = zones
 
@@ -74,6 +80,29 @@ class OverlayManager: OverlayPresenting {
             entry.window.orderOut(nil)
         }
         overlayEntries.removeAll()
+    }
+
+    func showCurtain(message: String, on display: DisplayInfo, accentColor: Color) {
+        guard let screen = screen(for: display) else { return }
+        curtainWindow?.orderOut(nil)
+
+        let window = OverlayWindow(for: screen)
+        window.contentView = NSHostingView(rootView: CurtainView(message: message, accentColor: accentColor))
+        window.setFrame(screen.visibleFrame, display: true)
+        window.alphaValue = 1
+        window.orderFront(nil)
+        curtainWindow = window
+    }
+
+    func fadeOutCurtain(duration: TimeInterval) {
+        guard let window = curtainWindow else { return }
+        curtainWindow = nil
+        NSAnimationContext.runAnimationGroup({ context in
+            context.duration = duration
+            window.animator().alphaValue = 0
+        }, completionHandler: {
+            window.orderOut(nil)
+        })
     }
 
     func flashModeName(_ name: String, on screen: NSScreen) {

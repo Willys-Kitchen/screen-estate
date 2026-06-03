@@ -5,6 +5,7 @@ import ApplicationServices
 protocol WindowManipulating {
     func getFocusedWindow() -> AXUIElement?
     func isWindowValid(_ window: AXUIElement) -> Bool
+    func getWindowFrame(_ window: AXUIElement) -> CGRect?
     func isFullscreen(_ window: AXUIElement) -> Bool
     func exitFullscreen(_ window: AXUIElement) -> Bool
     @discardableResult func setWindowFrame(_ window: AXUIElement, frame: CGRect) -> Bool
@@ -161,12 +162,20 @@ class WindowManipulationService: WindowManipulating {
             return false
         }
 
-        var success = true
+        let success = applyFrame(window, frame: frame)
 
-        // Set position first, let macOS process it, then set size.
-        // This works around a macOS quirk where cross-monitor moves need a moment
-        // before size changes are applied relative to the new screen.
+        if let actual = getWindowFrame(window),
+           hypot(actual.origin.x - frame.origin.x, actual.origin.y - frame.origin.y) > 20 {
+            return applyFrame(window, frame: frame)
+        }
+
+        return success
+    }
+
+    private func applyFrame(_ window: AXUIElement, frame: CGRect) -> Bool {
+        var success = true
         var position = frame.origin
+
         if let posValue = AXValueCreate(.cgPoint, &position) {
             let posResult = AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, posValue)
             if posResult != .success {
@@ -191,7 +200,18 @@ class WindowManipulationService: WindowManipulating {
             success = false
         }
 
+        CFRunLoopRunInMode(.defaultMode, 0.02, false)
+
+        if let posValue = AXValueCreate(.cgPoint, &position) {
+            AXUIElementSetAttributeValue(window, kAXPositionAttribute as CFString, posValue)
+        }
+
         return success
+    }
+
+    func getWindowFrame(_ window: AXUIElement) -> CGRect? {
+        guard let position = getWindowPosition(window), let size = getWindowSize(window) else { return nil }
+        return CGRect(origin: position, size: size)
     }
 
     /// Raise the window to the front of its app's window stack.

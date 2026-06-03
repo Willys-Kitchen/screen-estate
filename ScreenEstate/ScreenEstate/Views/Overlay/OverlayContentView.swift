@@ -57,6 +57,31 @@ struct OverlayContentView: View {
     }
 }
 
+struct CurtainView: View {
+    let message: String
+    let accentColor: Color
+
+    var body: some View {
+        ZStack {
+            Color(white: 0.12)
+            LinearGradient(
+                colors: [accentColor.opacity(0.30), accentColor.opacity(0.10)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            Text(message)
+                .font(.system(size: 38, weight: .semibold))
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.5)
+                .lineLimit(3)
+                .foregroundColor(.white.opacity(0.9))
+                .shadow(color: .black.opacity(0.35), radius: 2)
+                .padding(32)
+        }
+        .ignoresSafeArea()
+    }
+}
+
 struct ModeFlashView: View {
     let modeName: String
 

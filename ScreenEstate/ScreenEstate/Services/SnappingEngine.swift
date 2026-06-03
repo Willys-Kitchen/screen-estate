@@ -20,18 +20,59 @@ class SnappingEngine {
     private var monitors: [Any] = []
     var onSnapFailed: (() -> Void)?
 
+    private let fullscreenQuietWait: TimeInterval
+    private let fullscreenVerifyDelay: TimeInterval
+    private let curtainFadeDuration: TimeInterval
+
+    private let curtainMessages = [
+        "shuffling some shtuff",
+        "movin your tingz",
+        "thanks for using screen estate :)",
+        "Willy says hi",
+        "Sorry if this wait is a bit awkward",
+        "Can you tell this app was heavily vibecoded?",
+        "blame apple for the wait, not me",
+        "if you want, press esc and then move the screen. or don't. you do you",
+        "looking good :)",
+        "Hope you liked your accent colour",
+        "sliding your content over",
+        "this took way too many attempts to get working",
+        "an AI wrote most of this, be nice",
+        "held together with hopes and dispatch timers",
+        "shipping > perfect, apparently",
+        "macOS won't let me do this any faster, sorry",
+        "fighting the window manager on your behalf",
+        "waiting for apple's fullscreen mode to finish chucking a sook",
+        "made with love-ish",
+        "you're one of like 3 people using this :)",
+        "checkout Willys-Kitchen on github to see if he's cooked up anything new",
+        "almost there…",
+        "worth the wait, probably",
+        "can't believe this kind of app isn't free on mac btw"
+    ]
+
+    private var curtainMessage: String {
+        curtainMessages.randomElement() ?? "Arranging your screen estate…"
+    }
+
     init(
         appState: AppState,
         windowService: WindowManipulating = WindowManipulationService(),
         displayService: DisplayQuerying = DisplayService(),
         overlayManager: OverlayPresenting = OverlayManager(),
-        onSnapFailed: (() -> Void)? = nil
+        onSnapFailed: (() -> Void)? = nil,
+        fullscreenQuietWait: TimeInterval = 0.8,
+        fullscreenVerifyDelay: TimeInterval = 0.1,
+        curtainFadeDuration: TimeInterval = 0.5
     ) {
         self.appState = appState
         self.windowService = windowService
         self.displayService = displayService
         self.overlayManager = overlayManager
         self.onSnapFailed = onSnapFailed
+        self.fullscreenQuietWait = fullscreenQuietWait
+        self.fullscreenVerifyDelay = fullscreenVerifyDelay
+        self.curtainFadeDuration = curtainFadeDuration
     }
 
     func start() {
@@ -259,15 +300,17 @@ class SnappingEngine {
             NSLog("Screen Estate: Window is fullscreen, exiting before snap")
             #endif
             if windowService.exitFullscreen(window) {
-                // Wait for fullscreen exit animation (~0.5s), then re-fetch window and snap
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                if let resolved = resolveGlobalZone(number) {
+                    overlayManager.showCurtain(message: curtainMessage, on: resolved.display, accentColor: accentColor)
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + fullscreenQuietWait) { [weak self] in
                     guard let self else { return }
-                    // Re-fetch focused window — the original reference may be stale after fullscreen exit
                     guard let freshWindow = self.windowService.getFocusedWindow() else {
                         NSLog("Screen Estate: Lost window reference after fullscreen exit")
+                        self.overlayManager.fadeOutCurtain(duration: 0.2)
                         return
                     }
-                    self.performSnap(window: freshWindow, toZoneNumber: number)
+                    self.performFullscreenSnap(window: freshWindow, toZoneNumber: number)
                 }
                 return
             }
@@ -278,54 +321,105 @@ class SnappingEngine {
         performSnap(window: window, toZoneNumber: number)
     }
 
-    private func performSnap(window: AXUIElement, toZoneNumber number: Int) {
-        guard let mode = appState.activeMode else {
-            NSLog("Screen Estate: No active mode")
-            return
-        }
+    private func framesMatch(_ a: CGRect?, _ b: CGRect?, tolerance: CGFloat) -> Bool {
+        guard let a, let b else { return false }
+        return abs(a.origin.x - b.origin.x) <= tolerance
+            && abs(a.origin.y - b.origin.y) <= tolerance
+            && abs(a.width - b.width) <= tolerance
+            && abs(a.height - b.height) <= tolerance
+    }
 
+    private struct ResolvedZone {
+        let display: DisplayInfo
+        let zone: Zone
+        let axFrame: CGRect
+    }
+
+    private func resolveGlobalZone(_ number: Int) -> ResolvedZone? {
+        guard let mode = appState.activeMode else { return nil }
         let displays = displayService.connectedDisplays()
         let primaryHeight = NSScreen.screens.first?.frame.height ?? 1080
-
-        // Find zone by global number across all monitors
-        #if DEBUG
-        NSLog("Screen Estate: Snapping to global zone \(number)")
-        #endif
         guard let result = GlobalZoneHelper.findZoneByGlobalNumber(number, displays: displays, mode: mode) else {
-            NSLog("Screen Estate: No global zone with number \(number)")
-            return
+            return nil
         }
-
         let axFrame = result.zone.accessibilityFrame(for: result.display.visibleFrame, primaryScreenHeight: primaryHeight)
-        #if DEBUG
-        NSLog("Screen Estate: Snapping to \(axFrame) on \(result.display.name)")
-        #endif
-        if !windowService.setWindowFrame(window, frame: axFrame) {
-            onSnapFailed?()
-            return
-        }
+        return ResolvedZone(display: result.display, zone: result.zone, axFrame: axFrame)
+    }
 
-        // Raise window and activate owning app (best-effort, failures are silent)
-        // Only proceed if window is still valid after move
-        if windowService.isWindowValid(window) {
-            windowService.raiseWindow(window)
-            windowService.activateOwningApp(window)
-        }
-
-        // Show overlay with global zone numbers
+    private func showZoneOverlay(for resolved: ResolvedZone, autoHideAfter: TimeInterval?) {
+        guard let mode = appState.activeMode else { return }
+        let displays = displayService.connectedDisplays()
         let globalZones = GlobalZoneHelper.computeGlobalZones(displays: displays, mode: mode)
-        let zonesOnDisplay = globalZones.filter { $0.displayIdentifier == result.display.identifier }
+        let zonesOnDisplay = globalZones.filter { $0.displayIdentifier == resolved.display.identifier }
         overlayManager.showOverlays(
             zones: zonesOnDisplay.map { $0.zone },
-            for: [result.display],
-            activeZoneID: result.zone.id,
+            for: [resolved.display],
+            activeZoneID: resolved.zone.id,
             accentColor: accentColor,
             globalNumbers: Dictionary(uniqueKeysWithValues: zonesOnDisplay.compactMap { gz in
                 gz.globalNumber.map { (gz.zone.id, $0) }
             })
         )
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            self?.overlayManager.hideOverlays()
+        if let autoHideAfter {
+            DispatchQueue.main.asyncAfter(deadline: .now() + autoHideAfter) { [weak self] in
+                self?.overlayManager.hideOverlays()
+            }
         }
+    }
+
+    private func verifyLandingOnce(window: AXUIElement, frame: CGRect) {
+        guard windowService.isWindowValid(window) else { return }
+        let current = windowService.getWindowFrame(window)
+        if let current, framesMatch(current, frame, tolerance: 8) {
+            return
+        }
+        windowService.setWindowFrame(window, frame: frame)
+        windowService.raiseWindow(window)
+        windowService.activateOwningApp(window)
+    }
+
+    private func performFullscreenSnap(window: AXUIElement, toZoneNumber number: Int) {
+        guard let resolved = resolveGlobalZone(number) else {
+            NSLog("Screen Estate: No global zone with number \(number)")
+            overlayManager.fadeOutCurtain(duration: 0.2)
+            return
+        }
+        let axFrame = resolved.axFrame
+
+        if !windowService.setWindowFrame(window, frame: axFrame) {
+            onSnapFailed?()
+        }
+        if windowService.isWindowValid(window) {
+            windowService.raiseWindow(window)
+            windowService.activateOwningApp(window)
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + fullscreenVerifyDelay) { [weak self] in
+            guard let self else { return }
+            self.verifyLandingOnce(window: window, frame: axFrame)
+            self.overlayManager.fadeOutCurtain(duration: self.curtainFadeDuration)
+        }
+    }
+
+    private func performSnap(window: AXUIElement, toZoneNumber number: Int) {
+        guard let resolved = resolveGlobalZone(number) else {
+            NSLog("Screen Estate: No global zone with number \(number)")
+            return
+        }
+        #if DEBUG
+        NSLog("Screen Estate: Snapping to \(resolved.axFrame) on \(resolved.display.name)")
+        #endif
+        if !windowService.setWindowFrame(window, frame: resolved.axFrame) {
+            onSnapFailed?()
+            return
+        }
+
+        // Raise window and activate owning app (best-effort, failures are silent)
+        if windowService.isWindowValid(window) {
+            windowService.raiseWindow(window)
+            windowService.activateOwningApp(window)
+        }
+
+        showZoneOverlay(for: resolved, autoHideAfter: 0.3)
     }
 }
