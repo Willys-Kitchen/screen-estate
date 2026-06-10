@@ -147,6 +147,32 @@ final class AppDelegateTests: XCTestCase {
         XCTAssertEqual(created().last?.startCount, 1)
     }
 
+    // MARK: - Snap failure alert
+
+    func testSnapFailureWithAccessibilityGrantedShowsNoPermissionAlert() {
+        let delegate = AppDelegate()
+        delegate.isAccessibilityTrusted = { true }
+        var alerts = 0
+        delegate.presentAccessibilityAlert = { alerts += 1 }
+
+        delegate.handleSnapFailed()
+
+        XCTAssertEqual(alerts, 0,
+                       "a snap can fail for non-permission reasons; don't tell the user to grant a permission they have")
+    }
+
+    func testSnapFailureWithoutAccessibilityAlertsOnceWithinDebounceWindow() {
+        let delegate = AppDelegate()
+        delegate.isAccessibilityTrusted = { false }
+        var alerts = 0
+        delegate.presentAccessibilityAlert = { alerts += 1 }
+
+        delegate.handleSnapFailed()
+        delegate.handleSnapFailed()
+
+        XCTAssertEqual(alerts, 1, "repeat failures inside the debounce window must not stack alerts")
+    }
+
     // MARK: - Helpers
 
     private func waitUntil(timeout: TimeInterval = 1.0, _ condition: () -> Bool) async {

@@ -86,16 +86,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         services = nil
     }
 
-    private func handleSnapFailed() {
+    /// Whether the process currently has Accessibility. Injectable for tests.
+    var isAccessibilityTrusted: () -> Bool = {
+        WindowManipulationService.checkAccessibility(prompt: false)
+    }
+
+    /// Presents the Accessibility alert. Injectable for tests; defaults to the
+    /// real NSAlert.
+    lazy var presentAccessibilityAlert: () -> Void = { [weak self] in
+        self?.showAccessibilityAlert()
+    }
+
+    func handleSnapFailed() {
+        // Only blame permissions when permission is actually the problem; a
+        // snap can also fail because the window closed, is non-resizable, or
+        // its app is unresponsive.
+        guard !isAccessibilityTrusted() else {
+            NSLog("Screen Estate: Snap failed but accessibility is granted (window closed, non-resizable, or app unresponsive)")
+            return
+        }
         // Debounce: only show once per 30 seconds
         if let last = lastAccessibilityAlertDate, Date().timeIntervalSince(last) < 30 {
             return
         }
-        showAccessibilityAlert()
+        lastAccessibilityAlertDate = Date()
+        presentAccessibilityAlert()
     }
 
     private func showAccessibilityAlert() {
-        lastAccessibilityAlertDate = Date()
         let alert = NSAlert()
         alert.messageText = "Accessibility Permission Required"
         alert.informativeText = "Screen Estate needs accessibility access to move and resize windows. Please grant permission in System Settings."

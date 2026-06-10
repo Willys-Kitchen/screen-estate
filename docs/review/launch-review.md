@@ -51,7 +51,7 @@ Finding status: `open` / `fixed` / `accepted-risk`.
 - What: The identifier embeds `CGDisplaySerialNumber`, but some monitors (confirmed: Dell U3423WE, U2518D) report *different non-zero serials* for the same physical display across reconnects — the value can derive from connection-dependent EDID data, especially through docks. The serial==0 → `CGDirectDisplayID` fallback has the same instability. Confirmed in a real `modes.json`: the same Dell monitor appears under two serials (`s810043212` vs `s809645644`), and orphaned layouts accumulate (8 layouts in one mode).
 - Why it matters: This is the reported "no memory of monitor configuration" bug — switching between home/work setups (or just replugging a dock) makes saved zones silently stop applying, and every reconfiguration appends another orphan layout.
 - Suggested fix: When a connected display's exact identifier has no layout, fuzzy re-match against saved layouts by vendor+model (disambiguating multiples of the same model by relative position), and migrate the matched layout to the new identifier. Consider garbage-collecting duplicate vendor+model layouts on load.
-- Status: open
+- Status: fixed (DisplayLayoutReconciler, run at launch + display change, .bak safety copy; covered by DisplayLayoutReconcilerTests)
 
 ### F-06 [Minor] Frame verification checks position only, never size
 - Where: `ScreenEstate/ScreenEstate/Services/WindowManipulationService.swift:165-172`
