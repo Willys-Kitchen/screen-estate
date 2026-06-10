@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import Carbon.HIToolbox
 
 struct RGBA: Codable, Hashable {
     var red: Double
@@ -44,6 +45,16 @@ struct CustomModifierKey: Codable, Hashable {
     var option:  Bool { eventFlags.contains(.option) }
     var shift:   Bool { eventFlags.contains(.shift) }
     var command: Bool { eventFlags.contains(.command) }
+
+    /// The same modifiers expressed as Carbon hotkey flags, for RegisterEventHotKey.
+    var carbonFlags: UInt32 {
+        var flags: UInt32 = 0
+        if control { flags |= UInt32(controlKey) }
+        if option  { flags |= UInt32(optionKey) }
+        if shift   { flags |= UInt32(shiftKey) }
+        if command { flags |= UInt32(cmdKey) }
+        return flags
+    }
 
     var displayString: String {
         var parts: [String] = []

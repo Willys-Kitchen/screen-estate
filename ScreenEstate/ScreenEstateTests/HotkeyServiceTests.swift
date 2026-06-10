@@ -1,115 +1,128 @@
 import XCTest
 import AppKit
+import Carbon.HIToolbox
 @testable import ScreenEstate
 
 @MainActor
 final class HotkeyServiceTests: XCTestCase {
 
-    /// Builds a HotkeyService with a controllable trust check and a fake monitor
-    /// installer, so the trust-gated lifecycle can be tested without real event
-    /// taps or Accessibility permission.
+    private struct Registration: Equatable {
+        let keyCode: UInt32
+        let modifiers: UInt32
+        let id: UInt32
+    }
+
+    /// Builds a HotkeyService with fake Carbon registration, so the hotkey
+    /// lifecycle can be tested without registering real system hotkeys.
     private func makeService(
-        trusted: @escaping () -> Bool
-    ) -> (service: HotkeyService, installCount: () -> Int, removeCount: () -> Int) {
-        let appState = AppState()
+        appState: AppState = AppState(),
+        failRegistrationFor: Set<UInt32> = []
+    ) -> (service: HotkeyService, registrations: () -> [Registration], unregisterCount: () -> Int) {
         let engine = SnappingEngine(appState: appState)
         let service = HotkeyService(
             appState: appState,
             snappingEngine: engine,
             overlayManager: OverlayManager()
         )
-        service.isAccessibilityTrusted = trusted
 
-        var installs = 0
-        var removes = 0
-        service.installKeyDownMonitor = { _ in
-            installs += 1
-            return NSObject() // opaque token
+        var registrations: [Registration] = []
+        var unregisters = 0
+        service.registerHotKey = { keyCode, modifiers, id in
+            registrations.append(Registration(keyCode: keyCode, modifiers: modifiers, id: id))
+            return failRegistrationFor.contains(id) ? nil : OpaquePointer(bitPattern: Int(id) + 1)
         }
-        service.removeKeyDownMonitor = { _ in removes += 1 }
+        service.unregisterHotKey = { _ in unregisters += 1 }
 
-        return (service, { installs }, { removes })
+        return (service, { registrations }, { unregisters })
     }
 
-    // MARK: - Trusted at start
+    // MARK: - Registration
 
-    func testInstallsMonitorImmediatelyWhenTrusted() {
-        let (service, installCount, _) = makeService(trusted: { true })
+    func testStartRegistersAllTenDigitChordsWithConfiguredModifier() {
+        let (service, registrations, _) = makeService()
 
         service.start()
 
+        let regs = registrations()
+        XCTAssertEqual(regs.count, 10, "digits 0-9 must each get a system hotkey")
+        XCTAssertEqual(Set(regs.map(\.id)), Set(0...9))
+        // Default modifier is ⌃⌥ — registered as Carbon controlKey|optionKey,
+        // so the chord is consumed and never reaches the frontmost app.
+        let expected = UInt32(controlKey | optionKey)
+        XCTAssertTrue(regs.allSatisfy { $0.modifiers == expected },
+                      "all chords must use the configured modifier")
+        XCTAssertEqual(regs.first { $0.id == 1 }?.keyCode, UInt32(kVK_ANSI_1))
+        XCTAssertEqual(regs.first { $0.id == 0 }?.keyCode, UInt32(kVK_ANSI_0))
         XCTAssertTrue(service.isMonitoring)
-        XCTAssertFalse(service.isWaitingForTrust)
-        XCTAssertEqual(installCount(), 1)
     }
 
-    // MARK: - Untrusted at start, granted later
-
-    func testDefersMonitorUntilTrustedThenInstallsWithoutRelaunch() {
-        var trusted = false
-        let (service, installCount, _) = makeService(trusted: { trusted })
-
-        service.start()
-        XCTAssertFalse(service.isMonitoring, "must not install a dead monitor while untrusted")
-        XCTAssertTrue(service.isWaitingForTrust, "should watch for the grant")
-        XCTAssertEqual(installCount(), 0)
-
-        // User grants Accessibility; a poll tick fires.
-        trusted = true
-        service.pollTrustForTesting()
-
-        XCTAssertTrue(service.isMonitoring)
-        XCTAssertFalse(service.isWaitingForTrust, "should stop watching once installed")
-        XCTAssertEqual(installCount(), 1)
-    }
-
-    func testPollingWhileStillUntrustedDoesNotInstall() {
-        let (service, installCount, _) = makeService(trusted: { false })
-
-        service.start()
-        service.pollTrustForTesting()
-        service.pollTrustForTesting()
-
-        XCTAssertFalse(service.isMonitoring)
-        XCTAssertTrue(service.isWaitingForTrust)
-        XCTAssertEqual(installCount(), 0)
-    }
-
-    // MARK: - Idempotency
-
-    func testDoesNotInstallTwiceWhenAlreadyMonitoring() {
-        var trusted = false
-        let (service, installCount, _) = makeService(trusted: { trusted })
-
-        service.start()
-        trusted = true
-        service.pollTrustForTesting()
-        service.pollTrustForTesting() // extra tick after install
-        service.start()               // redundant start
-
-        XCTAssertEqual(installCount(), 1)
-    }
-
-    // MARK: - Stop
-
-    func testStopRemovesMonitorAndStopsWatching() {
-        let (service, _, removeCount) = makeService(trusted: { true })
+    func testStopUnregistersEverything() {
+        let (service, _, unregisterCount) = makeService()
         service.start()
 
         service.stop()
 
+        XCTAssertEqual(unregisterCount(), 10)
         XCTAssertFalse(service.isMonitoring)
-        XCTAssertFalse(service.isWaitingForTrust)
-        XCTAssertEqual(removeCount(), 1)
     }
 
-    func testStopWhileWaitingForTrustStopsWatching() {
-        let (service, _, _) = makeService(trusted: { false })
+    func testStartIsIdempotent() {
+        let (service, registrations, unregisterCount) = makeService()
+
         service.start()
-        XCTAssertTrue(service.isWaitingForTrust)
+        service.start()
 
+        XCTAssertEqual(registrations().count - unregisterCount(), 10,
+                       "re-starting must not leave duplicate live registrations")
+    }
+
+    func testOneFailedRegistrationDoesNotAbortTheOthers() {
+        let (service, registrations, unregisterCount) = makeService(failRegistrationFor: [3])
+        service.start()
+
+        XCTAssertEqual(registrations().count, 10, "all ten must be attempted")
         service.stop()
+        XCTAssertEqual(unregisterCount(), 9, "only the successful nine are live to unregister")
+    }
 
-        XCTAssertFalse(service.isWaitingForTrust)
+    // MARK: - Modifier change
+
+    func testChangingModifierReRegistersWithNewFlags() async {
+        let appState = AppState()
+        let (service, registrations, _) = makeService(appState: appState)
+        service.start()
+        XCTAssertEqual(registrations().count, 10)
+
+        appState.settings.modifierKey = CustomModifierKey(flags: NSEvent.ModifierFlags.command.rawValue)
+        await waitUntil { registrations().count == 20 }
+
+        let newRegs = registrations().suffix(10)
+        XCTAssertTrue(newRegs.allSatisfy { $0.modifiers == UInt32(cmdKey) },
+                      "chords must follow the recorded modifier")
+    }
+
+    // MARK: - Dispatch
+
+    func testHotkeyZeroCyclesTheActiveMode() {
+        let appState = AppState()
+        appState.modes = [
+            Mode(id: UUID(), name: "A", layouts: []),
+            Mode(id: UUID(), name: "B", layouts: []),
+        ]
+        let (service, _, _) = makeService(appState: appState)
+        service.start()
+
+        service.handleHotKeyPressed(id: 0)
+
+        XCTAssertEqual(appState.activeModeIndex, 1)
+    }
+
+    // MARK: - Helpers
+
+    private func waitUntil(timeout: TimeInterval = 1.0, _ condition: () -> Bool) async {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !condition() && Date() < deadline {
+            await Task.yield()
+        }
     }
 }
