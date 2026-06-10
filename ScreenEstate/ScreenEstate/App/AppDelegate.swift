@@ -2,32 +2,48 @@ import AppKit
 
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
-    var snappingEngine: SnappingEngine?
-    var hotkeyService: HotkeyService?
     var appState: AppState?
-    private let displayService = DisplayService()
+
+    /// Factory for the runtime services. Overridable in tests; defaults to the
+    /// real implementation.
+    var makeServices: ((AppState) -> AppServiceController)?
+
+    private var services: AppServiceController?
+    private var didFinishLaunching = false
     private var lastAccessibilityAlertDate: Date?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if !WindowManipulationService.checkAccessibility(prompt: true) {
             NSLog("Screen Estate: Accessibility permission not granted. Prompting user.")
         }
+        adoptSharedState()
+        markLaunched()
+    }
 
-        // Services will be started once appState is set
-        if let appState {
-            startServices(appState: appState)
-        }
+    /// Pulls in the live app state published by `ScreenEstateApp.init()`. This
+    /// is the launch path that starts services even when the app is launched in
+    /// the background and the menu is never opened. No-op if state was already
+    /// wired in (e.g. via the menu's onAppear backstop).
+    func adoptSharedState() {
+        guard appState == nil, let shared = AppState.shared else { return }
+        setAppState(shared)
+    }
+
+    /// Records that the app has launched and starts services if everything is
+    /// ready. Separated from `applicationDidFinishLaunching` so it can be driven
+    /// in tests without triggering the accessibility prompt.
+    func markLaunched() {
+        didFinishLaunching = true
+        startServicesIfReady()
     }
 
     func setAppState(_ state: AppState) {
+        // Idempotent: App.init() wires this in at launch, and the menu's
+        // onAppear may call it again as a backstop.
+        guard appState == nil else { return }
         self.appState = state
-        // If app already launched, start services now
-        if NSApp.isRunning {
-            if state.settings.isEnabled {
-                startServices(appState: state)
-            }
-        }
         observeIsEnabled(state)
+        startServicesIfReady()
     }
 
     private func observeIsEnabled(_ state: AppState) {
@@ -37,7 +53,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             Task { @MainActor in
                 guard let self, let appState = self.appState else { return }
                 if appState.isEnabled {
-                    self.startServices(appState: appState)
+                    self.startServicesIfReady()
                 } else {
                     NSLog("Screen Estate: Disabled by user, stopping services.")
                     self.stopServices()
@@ -47,32 +63,27 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    private func startServices(appState: AppState) {
-        guard snappingEngine == nil else { return } // Already started
+    /// Starts services exactly once, when the app has launched and an enabled
+    /// app state is available — regardless of which signal arrives last.
+    private func startServicesIfReady() {
+        guard didFinishLaunching,
+              services == nil,
+              let appState,
+              appState.settings.isEnabled else { return }
 
-        let engine = SnappingEngine(appState: appState) { [weak self] in
-            self?.handleSnapFailed()
+        let make = makeServices ?? { [weak self] state in
+            DefaultAppServiceController(appState: state) { self?.handleSnapFailed() }
         }
-        let overlayManager = OverlayManager()
-        let hotkeys = HotkeyService(appState: appState, snappingEngine: engine, overlayManager: overlayManager)
-
-        engine.start()
-        hotkeys.start()
-
-        self.snappingEngine = engine
-        self.hotkeyService = hotkeys
-
-        displayService.startMonitoring { }
+        let svc = make(appState)
+        svc.start()
+        services = svc
 
         NSLog("Screen Estate: Services started. Snapping engine and hotkeys active.")
     }
 
     func stopServices() {
-        displayService.stopMonitoring()
-        snappingEngine?.stop()
-        hotkeyService?.stop()
-        snappingEngine = nil
-        hotkeyService = nil
+        services?.stop()
+        services = nil
     }
 
     private func handleSnapFailed() {
