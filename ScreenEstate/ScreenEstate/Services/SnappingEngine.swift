@@ -299,6 +299,10 @@ class SnappingEngine {
             #if DEBUG
             NSLog("Screen Estate: Window is fullscreen, exiting before snap")
             #endif
+            // Capture the owning app before exiting: focus can legitimately
+            // move during the quiet wait, and we must never snap a different
+            // app's window.
+            let originalPID = windowService.owningPID(window)
             if windowService.exitFullscreen(window) {
                 if let resolved = resolveGlobalZone(number) {
                     overlayManager.showCurtain(message: curtainMessage, on: resolved.display, accentColor: accentColor)
@@ -307,6 +311,11 @@ class SnappingEngine {
                     guard let self else { return }
                     guard let freshWindow = self.windowService.getFocusedWindow() else {
                         NSLog("Screen Estate: Lost window reference after fullscreen exit")
+                        self.overlayManager.fadeOutCurtain(duration: 0.2)
+                        return
+                    }
+                    guard self.windowService.owningPID(freshWindow) == originalPID else {
+                        NSLog("Screen Estate: Focus moved to another app during fullscreen exit, aborting snap")
                         self.overlayManager.fadeOutCurtain(duration: 0.2)
                         return
                     }

@@ -8,6 +8,7 @@ protocol WindowManipulating {
     func getWindowFrame(_ window: AXUIElement) -> CGRect?
     func isFullscreen(_ window: AXUIElement) -> Bool
     func exitFullscreen(_ window: AXUIElement) -> Bool
+    func owningPID(_ window: AXUIElement) -> pid_t?
     @discardableResult func setWindowFrame(_ window: AXUIElement, frame: CGRect) -> Bool
     @discardableResult func raiseWindow(_ window: AXUIElement) -> Bool
     @discardableResult func activateOwningApp(_ window: AXUIElement) -> Bool
@@ -225,15 +226,21 @@ class WindowManipulationService: WindowManipulating {
         return true
     }
 
-    /// Activate the app that owns this window, giving it keyboard focus.
-    @discardableResult
-    func activateOwningApp(_ window: AXUIElement) -> Bool {
+    /// The process ID of the app that owns this window.
+    func owningPID(_ window: AXUIElement) -> pid_t? {
         var pid: pid_t = 0
         let pidResult = AXUIElementGetPid(window, &pid)
         if pidResult != .success {
             NSLog("Screen Estate [AX]: Failed to get PID from window: \(describeAXError(pidResult))")
-            return false
+            return nil
         }
+        return pid
+    }
+
+    /// Activate the app that owns this window, giving it keyboard focus.
+    @discardableResult
+    func activateOwningApp(_ window: AXUIElement) -> Bool {
+        guard let pid = owningPID(window) else { return false }
 
         guard let app = NSRunningApplication(processIdentifier: pid) else {
             NSLog("Screen Estate [AX]: No running application for PID \(pid)")

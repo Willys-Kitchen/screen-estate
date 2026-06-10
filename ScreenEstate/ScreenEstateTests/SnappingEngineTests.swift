@@ -47,6 +47,13 @@ final class SnappingEngineTests: XCTestCase {
             return true
         }
 
+        var owningPIDResult: (AXUIElement) -> pid_t? = { _ in nil }
+
+        func owningPID(_ window: AXUIElement) -> pid_t? {
+            callLog.append("owningPID")
+            return owningPIDResult(window)
+        }
+
         @discardableResult
         func setWindowFrame(_ window: AXUIElement, frame: CGRect) -> Bool {
             callLog.append("setWindowFrame")
@@ -373,6 +380,31 @@ final class SnappingEngineTests: XCTestCase {
         XCTAssertLessThan(exitIdx, frameSetIdx, "Must exit fullscreen before snapping")
         XCTAssertEqual(log.filter { $0 == "setWindowFrame" }.count, 1,
                        "Should move exactly once when the window lands. Log: \(log)")
+    }
+
+    func testFullscreenSnapAbortsWhenFocusMovedToAnotherApp() {
+        // Arrange: the original fullscreen window belongs to PID 100; during
+        // the quiet wait focus shifts to a different app's window (PID 200).
+        let mockWindow = MockWindowService()
+        let original = AXUIElementCreateSystemWide()
+        let other = AXUIElementCreateApplication(ProcessInfo.processInfo.processIdentifier)
+        mockWindow.focusedWindow = original
+        mockWindow.fullscreenResults = [true, false]
+        mockWindow.owningPIDResult = { CFEqual($0, original) ? 100 : 200 }
+
+        let engine = makeFullscreenTestEngine(mockWindow: mockWindow)
+
+        // Act
+        engine.snapFocusedWindowToZone(number: 1)
+        mockWindow.focusedWindow = other // focus changes mid-wait
+
+        let done = expectation(description: "quiet wait elapses")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { done.fulfill() }
+        wait(for: [done], timeout: 1.0)
+
+        // Assert
+        XCTAssertEqual(mockWindow.callLog.filter { $0 == "setWindowFrame" }.count, 0,
+                       "must never snap a window belonging to a different app. Log: \(mockWindow.callLog)")
     }
 
     func testFullscreenVerifyDoesOneCorrectiveMoveWhenNotLanded() {
