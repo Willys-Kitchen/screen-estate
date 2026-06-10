@@ -55,6 +55,23 @@ class PersistenceService {
         return defaults
     }
 
+    /// Copies the current file to `<name>.bak` (replacing any previous .bak).
+    /// Called before an automated rewrite (e.g. layout reconciliation) so the
+    /// pre-rewrite state stays recoverable.
+    func keepSafetyCopy(of file: ConfigFile) {
+        let url = baseDirectory.appendingPathComponent(file.rawValue)
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        let bak = baseDirectory.appendingPathComponent("\(file.rawValue).bak")
+        do {
+            if FileManager.default.fileExists(atPath: bak.path) {
+                try FileManager.default.removeItem(at: bak)
+            }
+            try FileManager.default.copyItem(at: url, to: bak)
+        } catch {
+            NSLog("Screen Estate: Could not write safety copy of \(file.rawValue): \(error)")
+        }
+    }
+
     private func backUpUnreadableFile(_ file: ConfigFile) {
         let url = baseDirectory.appendingPathComponent(file.rawValue)
         guard FileManager.default.fileExists(atPath: url.path) else { return }

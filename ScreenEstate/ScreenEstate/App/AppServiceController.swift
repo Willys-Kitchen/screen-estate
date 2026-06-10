@@ -16,6 +16,7 @@ final class DefaultAppServiceController: AppServiceController {
     private let hotkeys: HotkeyService
     private let overlayManager: OverlayManager
     private let displayService: DisplayService
+    private let appState: AppState
 
     init(appState: AppState, onSnapFailed: @escaping () -> Void) {
         let engine = SnappingEngine(appState: appState, onSnapFailed: onSnapFailed)
@@ -24,12 +25,25 @@ final class DefaultAppServiceController: AppServiceController {
         self.overlayManager = overlayManager
         self.hotkeys = HotkeyService(appState: appState, snappingEngine: engine, overlayManager: overlayManager)
         self.displayService = DisplayService()
+        self.appState = appState
     }
 
     func start() {
         engine.start()
         hotkeys.start()
-        displayService.startMonitoring { }
+        displayService.startMonitoring { [weak self] in
+            Task { @MainActor in
+                guard let self else { return }
+                // A monitor may have reconnected under a new identifier —
+                // re-key saved layouts so zones keep applying (see
+                // DisplayLayoutReconciler).
+                let displays = self.displayService.connectedDisplays()
+                let reconciled = DisplayLayoutReconciler.reconcile(modes: self.appState.modes, displays: displays)
+                if reconciled != self.appState.modes {
+                    self.appState.modes = reconciled
+                }
+            }
+        }
     }
 
     func stop() {

@@ -108,7 +108,7 @@ struct ScreenEstateApp: App {
         let persistence = PersistenceService()
         let displayService = DisplayService()
 
-        state.modes = persistence.loadModesOrReset {
+        let loadedModes = persistence.loadModesOrReset {
             let displays = displayService.connectedDisplays()
             let layouts = displays.map { display in
                 MonitorLayout(
@@ -120,6 +120,23 @@ struct ScreenEstateApp: App {
             }
             return [Mode(id: UUID(), name: "Default", layouts: layouts)]
         }
+
+        // Monitors can come back under a different serial (dock/EDID quirk),
+        // orphaning their saved layouts. Re-key them to the current displays;
+        // keep a safety copy before persisting any automated rewrite.
+        let reconciledModes = DisplayLayoutReconciler.reconcile(
+            modes: loadedModes,
+            displays: displayService.connectedDisplays()
+        )
+        if reconciledModes != loadedModes {
+            persistence.keepSafetyCopy(of: .modes)
+            do {
+                try persistence.save(reconciledModes, to: .modes)
+            } catch {
+                NSLog("Screen Estate: Failed to save reconciled modes: \(error)")
+            }
+        }
+        state.modes = reconciledModes
 
         do {
             let settings: AppSettings = try persistence.load(from: .settings)

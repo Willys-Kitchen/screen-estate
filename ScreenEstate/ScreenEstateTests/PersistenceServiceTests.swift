@@ -133,6 +133,20 @@ final class PersistenceServiceTests: XCTestCase {
         XCTAssertEqual(reloaded.map(\.name), ["Default"], "defaults must be persisted")
     }
 
+    func testKeepSafetyCopyPreservesCurrentFileAsBak() throws {
+        let original = [Mode(id: UUID(), name: "Original", layouts: [])]
+        try service.save(original, to: .modes)
+
+        service.keepSafetyCopy(of: .modes)
+        try service.save([Mode(id: UUID(), name: "Rewritten", layouts: [])], to: .modes)
+
+        let bakURL = tempDir.appendingPathComponent("modes.json.bak")
+        let bakData = try Data(contentsOf: bakURL)
+        let restored = try JSONDecoder().decode([Mode].self, from: bakData)
+        XCTAssertEqual(restored.map(\.name), ["Original"],
+                       "the .bak must hold the pre-rewrite contents")
+    }
+
     // MARK: - JSON is Human-Readable
 
     func testSavedJSONIsPrettyPrinted() throws {

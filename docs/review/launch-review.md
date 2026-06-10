@@ -110,14 +110,14 @@ Finding status: `open` / `fixed` / `accepted-risk`.
 - What: Saves are debounced 1 s via `DispatchQueue.main.asyncAfter`; there is no `applicationWillTerminate` flush. Edit a zone, quit within a second → edit silently lost.
 - Why it matters: Classic "my layout didn't stick" bug report; users edit then immediately quit the editor/app.
 - Suggested fix: Add `applicationWillTerminate` in `AppDelegate` that synchronously flushes the pending save (expose `flush()` on `AutoSaveController`).
-- Status: open
+- Status: fixed (AutoSaveController observes willTerminateNotification and flushes; covered by AutoSaveControllerTests)
 
 ### F-14 [Major] Corrupt modes.json is immediately overwritten with defaults
 - Where: `ScreenEstate/ScreenEstate/App/ScreenEstateApp.swift:96-113`
 - What: Any load failure (corrupt file, transient read error, future schema change) falls into the defaults path, which then *saves* the defaults over the user's file.
 - Why it matters: One bad read irrecoverably destroys the user's entire zone configuration. Recovery is impossible because the original is gone.
 - Suggested fix: Before saving defaults, rename the unreadable file to `modes.json.corrupt-<date>` so the data is recoverable.
-- Status: open
+- Status: fixed (PersistenceService.loadModesOrReset backs up before reset; covered by PersistenceServiceTests)
 
 ### F-15 [Minor] No schema version; settings decode is all-or-nothing on legacy fields
 - Where: `ScreenEstate/ScreenEstate/Models/AppSettings.swift:100-109`; `modes.json` / `settings.json` have no version field
