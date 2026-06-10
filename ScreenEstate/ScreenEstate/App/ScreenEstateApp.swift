@@ -108,15 +108,7 @@ struct ScreenEstateApp: App {
         let persistence = PersistenceService()
         let displayService = DisplayService()
 
-        do {
-            let modes: [Mode] = try persistence.load(from: .modes)
-            if !modes.isEmpty {
-                state.modes = modes
-            } else {
-                throw NSError(domain: "ScreenEstate", code: 0, userInfo: [NSLocalizedDescriptionKey: "Empty modes file"])
-            }
-        } catch {
-            NSLog("Screen Estate: Failed to load modes, using defaults: \(error)")
+        state.modes = persistence.loadModesOrReset {
             let displays = displayService.connectedDisplays()
             let layouts = displays.map { display in
                 MonitorLayout(
@@ -126,13 +118,7 @@ struct ScreenEstateApp: App {
                     zones: MonitorLayout.presetsHalves()
                 )
             }
-            let defaultMode = Mode(id: UUID(), name: "Default", layouts: layouts)
-            state.modes = [defaultMode]
-            do {
-                try persistence.save(state.modes, to: .modes)
-            } catch {
-                NSLog("Screen Estate: Failed to save default modes: \(error)")
-            }
+            return [Mode(id: UUID(), name: "Default", layouts: layouts)]
         }
 
         do {

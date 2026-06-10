@@ -31,4 +31,42 @@ class PersistenceService {
         let data = try Data(contentsOf: url)
         return try JSONDecoder().decode(T.self, from: data)
     }
+
+    /// Loads modes, falling back to defaults when the file is missing, empty,
+    /// or unreadable. An existing unreadable file is preserved as
+    /// `modes.json.corrupt-<timestamp>` before defaults are written over it,
+    /// so user configuration is never silently destroyed.
+    func loadModesOrReset(makeDefaults: () -> [Mode]) -> [Mode] {
+        do {
+            let modes: [Mode] = try load(from: .modes)
+            if !modes.isEmpty { return modes }
+            NSLog("Screen Estate: Modes file is empty, resetting to defaults")
+        } catch {
+            NSLog("Screen Estate: Failed to load modes, resetting to defaults: \(error)")
+        }
+
+        backUpUnreadableFile(.modes)
+        let defaults = makeDefaults()
+        do {
+            try save(defaults, to: .modes)
+        } catch {
+            NSLog("Screen Estate: Failed to save default modes: \(error)")
+        }
+        return defaults
+    }
+
+    private func backUpUnreadableFile(_ file: ConfigFile) {
+        let url = baseDirectory.appendingPathComponent(file.rawValue)
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd-HHmmss"
+        let destination = baseDirectory
+            .appendingPathComponent("\(file.rawValue).corrupt-\(formatter.string(from: Date()))")
+        do {
+            try FileManager.default.moveItem(at: url, to: destination)
+            NSLog("Screen Estate: Preserved unreadable \(file.rawValue) at \(destination.lastPathComponent)")
+        } catch {
+            NSLog("Screen Estate: Could not back up unreadable \(file.rawValue): \(error)")
+        }
+    }
 }

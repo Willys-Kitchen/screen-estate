@@ -87,6 +87,52 @@ final class PersistenceServiceTests: XCTestCase {
         XCTAssertEqual(loaded[0].name, "Second")
     }
 
+    // MARK: - Corrupt File Recovery
+
+    func testCorruptModesFileIsBackedUpBeforeReset() throws {
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        let corruptData = Data("{this is not valid json".utf8)
+        try corruptData.write(to: tempDir.appendingPathComponent("modes.json"))
+
+        let defaults = [Mode(id: UUID(), name: "Default", layouts: [])]
+        let modes = service.loadModesOrReset(makeDefaults: { defaults })
+
+        XCTAssertEqual(modes.map(\.name), ["Default"], "unreadable file must fall back to defaults")
+
+        let backups = try FileManager.default.contentsOfDirectory(atPath: tempDir.path)
+            .filter { $0.hasPrefix("modes.json.corrupt") }
+        XCTAssertEqual(backups.count, 1, "the unreadable file must be preserved, not overwritten")
+        let backupData = try Data(contentsOf: tempDir.appendingPathComponent(backups[0]))
+        XCTAssertEqual(backupData, corruptData, "backup must contain the original bytes")
+
+        let reloaded: [Mode] = try service.load(from: .modes)
+        XCTAssertEqual(reloaded.map(\.name), ["Default"], "defaults must be written as the new modes file")
+    }
+
+    func testValidModesFileLoadsWithoutResetOrBackup() throws {
+        let saved = [Mode(id: UUID(), name: "Mine", layouts: [])]
+        try service.save(saved, to: .modes)
+
+        let modes = service.loadModesOrReset(makeDefaults: { XCTFail("defaults must not be built"); return [] })
+
+        XCTAssertEqual(modes.map(\.name), ["Mine"])
+        let backups = try FileManager.default.contentsOfDirectory(atPath: tempDir.path)
+            .filter { $0.hasPrefix("modes.json.corrupt") }
+        XCTAssertTrue(backups.isEmpty)
+    }
+
+    func testMissingModesFileResetsToDefaultsWithoutBackup() throws {
+        let defaults = [Mode(id: UUID(), name: "Default", layouts: [])]
+        let modes = service.loadModesOrReset(makeDefaults: { defaults })
+
+        XCTAssertEqual(modes.map(\.name), ["Default"])
+        let backups = try FileManager.default.contentsOfDirectory(atPath: tempDir.path)
+            .filter { $0.hasPrefix("modes.json.corrupt") }
+        XCTAssertTrue(backups.isEmpty, "no backup should be created when there was no file")
+        let reloaded: [Mode] = try service.load(from: .modes)
+        XCTAssertEqual(reloaded.map(\.name), ["Default"], "defaults must be persisted")
+    }
+
     // MARK: - JSON is Human-Readable
 
     func testSavedJSONIsPrettyPrinted() throws {
