@@ -129,6 +129,17 @@ struct ScreenEstateApp: App {
         self.persistence = persistence
         self.displayService = displayService
         self.autoSaveController = AutoSaveController(appState: state, persistence: persistence)
+
+        // Publish the configured state so the delegate can adopt it at launch
+        // (in applicationDidFinishLaunching) and start services even when the
+        // app is launched in the background and the menu is never opened.
+        //
+        // We deliberately do NOT call `appDelegate.setAppState(state)` here:
+        // reaching into the @NSApplicationDelegateAdaptor from App.init() is
+        // unreliable — the instance touched here isn't guaranteed to be the
+        // delegate that AppKit registers and sends applicationDidFinishLaunching
+        // to, which previously left services (and thus hotkeys) never started.
+        AppState.shared = state
     }
 
     private func openEditor() {
