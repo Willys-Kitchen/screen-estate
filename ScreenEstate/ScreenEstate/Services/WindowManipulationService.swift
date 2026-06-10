@@ -24,10 +24,19 @@ class WindowManipulationService: WindowManipulating {
         return AXIsProcessTrustedWithOptions(options)
     }
 
+    /// Cap for synchronous AX calls so a hung target app can't beachball us
+    /// for the default (multi-second) timeout.
+    private static let axMessagingTimeout: Float = 0.5
+
+    private func withTimeout(_ element: AXUIElement) -> AXUIElement {
+        AXUIElementSetMessagingTimeout(element, Self.axMessagingTimeout)
+        return element
+    }
+
     /// Get the focused window of the frontmost app.
     func getFocusedWindow() -> AXUIElement? {
         // First try: AXUIElement system-wide approach
-        let systemWide = AXUIElementCreateSystemWide()
+        let systemWide = withTimeout(AXUIElementCreateSystemWide())
 
         var focusedApp: AnyObject?
         let appResult = AXUIElementCopyAttributeValue(systemWide, kAXFocusedApplicationAttribute as CFString, &focusedApp)
@@ -62,7 +71,7 @@ class WindowManipulationService: WindowManipulating {
 
         NSLog("Screen Estate [AX]: Trying via NSWorkspace, frontmost app: \(frontApp.localizedName ?? "unknown") (PID \(frontApp.processIdentifier))")
 
-        let appElement = AXUIElementCreateApplication(frontApp.processIdentifier)
+        let appElement = withTimeout(AXUIElementCreateApplication(frontApp.processIdentifier))
 
         var focusedWindow: AnyObject?
         let result = AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &focusedWindow)

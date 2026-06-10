@@ -34,6 +34,8 @@ final class DefaultAppServiceController: AppServiceController {
         displayService.startMonitoring { [weak self] in
             Task { @MainActor in
                 guard let self else { return }
+                // Stale overlays/tracking reference the old display geometry.
+                self.engine.displayConfigurationChanged()
                 // A monitor may have reconnected under a new identifier —
                 // re-key saved layouts so zones keep applying (see
                 // DisplayLayoutReconciler).

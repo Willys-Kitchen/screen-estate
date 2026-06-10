@@ -276,6 +276,13 @@ class SnappingEngine {
         }
     }
 
+    /// Displays were added/removed/rearranged: any in-flight drag tracking and
+    /// visible overlays are based on stale geometry, so drop them. The next
+    /// drag recomputes from the new configuration.
+    func displayConfigurationChanged() {
+        cancelTracking()
+    }
+
     func showKeyboardSnapOverlay() {
         showOverlaysForCurrentMode()
     }

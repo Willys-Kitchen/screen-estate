@@ -23,28 +23,28 @@ Finding status: `open` / `fixed` / `accepted-risk`.
 - What: `AXUIElementSetMessagingTimeout` is never called. Every `AXUIElementCopyAttributeValue`/`SetAttributeValue` runs synchronously on the main thread with the default (multi-second) timeout.
 - Why it matters: Press a hotkey while the frontmost app is hung (spinning beachball) and ScreenEstate's entire UI freezes for the duration — repeated calls in `setWindowFrame` (preflight + apply + verify) multiply the stall.
 - Suggested fix: Call `AXUIElementSetMessagingTimeout(element, 0.5)` on the system-wide and per-app elements after creation.
-- Status: open
+- Status: fixed (0.5s timeout set on the system-wide element — which sets the process-wide default — and per-app elements)
 
 ### F-02 [Major] Fullscreen snap can grab and snap the wrong window
 - Where: `ScreenEstate/ScreenEstate/Services/SnappingEngine.swift:306-314`
 - What: After initiating fullscreen exit, the code waits 0.8 s then calls `getFocusedWindow()` and snaps whatever is focused. Focus can legitimately move during that window (user clicks elsewhere; fullscreen exit shifts focus to another app's window).
 - Why it matters: A different app's window gets resized/moved — surprising and destructive to the user's layout.
 - Suggested fix: Capture the original window's PID (`AXUIElementGetPid`) before exiting fullscreen; after re-fetch, verify the fresh window's PID matches and bail (fade curtain, no snap) if not.
-- Status: open
+- Status: fixed (PID guard in snapFocusedWindowToZone; covered by SnappingEngineTests)
 
 ### F-03 [Major] Every snap failure is blamed on Accessibility permission
 - Where: `ScreenEstate/ScreenEstate/App/AppDelegate.swift:89-111`
 - What: `onSnapFailed` always shows the "Accessibility Permission Required" alert, but `setWindowFrame` also fails for non-permission reasons: window closed mid-drag, non-resizable window, hung app, AX size constraints.
 - Why it matters: A user with permission granted who snaps a stubborn window gets told to grant a permission they already have — confusing, erodes trust, and the real cause is hidden.
 - Suggested fix: In `handleSnapFailed`, check `WindowManipulationService.checkAccessibility()`. Only show the permission alert when it returns false; otherwise show nothing or a transient "couldn't move that window" notice.
-- Status: open
+- Status: fixed (trust-checked before alerting; covered by AppDelegateTests)
 
 ### F-04 [Major] Display-change observer is wired to a no-op
 - Where: `ScreenEstate/ScreenEstate/App/AppServiceController.swift:32` (`displayService.startMonitoring { }`)
 - What: The display-change callback is an empty closure. Nothing reacts to monitors being added/removed: overlays stay on stale frames, an in-flight drag keeps its `cachedGlobalZones`, overlay windows for a disconnected display aren't torn down.
 - Why it matters: Unplugging a monitor mid-drag (or while the keyboard-snap overlay is up) leaves stale/orphaned overlays and zone numbers that no longer match what `updateHitTest` computes from fresh display data.
 - Suggested fix: On change, cancel any active tracking and hide overlays (expose a method on `SnappingEngine`); recompute caches lazily next use.
-- Status: open
+- Status: fixed (display change now cancels tracking/overlays and runs layout reconciliation)
 
 ### F-05 [Major] Display identifiers unstable across reconnects — layouts orphan, users must reconfigure
 - Where: `ScreenEstate/ScreenEstate/Services/DisplayService.swift:19-27`
@@ -81,7 +81,7 @@ Finding status: `open` / `fixed` / `accepted-risk`.
 - What: `NSEvent.addGlobalMonitorForEvents` observes events but cannot swallow them. The modifier+digit chord is also delivered to the focused app.
 - Why it matters: Default ⌃⌥+digit is mostly safe, but the modifier is user-configurable (`KeyRecorderView`): pick ⌘ and ⌘1 will switch the Safari tab *and* snap the window — every time.
 - Suggested fix: Either consume via a `CGEventTap` (listen+suppress) / Carbon `RegisterEventHotKey`, or restrict the recorder to modifier combos that don't collide with common app shortcuts and document the pass-through.
-- Status: open
+- Status: fixed (Carbon RegisterEventHotKey; chords consumed, no Accessibility needed, re-registers on modifier change; covered by HotkeyServiceTests)
 
 ### F-10 [Minor] No in-flight guard on the fullscreen snap sequence
 - Where: `ScreenEstate/ScreenEstate/Services/SnappingEngine.swift:298-322`
@@ -141,7 +141,7 @@ Finding status: `open` / `fixed` / `accepted-risk`.
 - What: The app is ad-hoc signed with hardened runtime unset. Sandbox is correctly off (required for AX); entitlements file is empty (fine).
 - Why it matters: Cannot notarize → Gatekeeper blocks the download for end users. Ad-hoc signing is also the root cause of the known TCC grant reset on every rebuild (see memory note). This is *the* launch blocker.
 - Suggested fix: Sign with a Developer ID Application certificate, enable hardened runtime, notarize the distributed build.
-- Status: open
+- Status: open (hardened runtime now enabled in both configs; Developer ID signing + notarization pending Apple Developer enrollment)
 
 ### F-18 [Minor] App names + PIDs logged on AX error paths
 - Where: `ScreenEstate/ScreenEstate/Services/WindowManipulationService.swift:62,245`
