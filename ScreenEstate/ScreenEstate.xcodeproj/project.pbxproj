@@ -51,6 +51,7 @@
 		APPSVCCTRLBUILD000000001 /* AppServiceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPSVCCTRLFILEREF0000001 /* AppServiceController.swift */; };
 		APPDLGTESTSBUILD00000001 /* AppDelegateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPDLGTESTSFILEREF000001 /* AppDelegateTests.swift */; };
 		HOTKEYTESTSBUILD00000001 /* HotkeyServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = HOTKEYTESTSFILEREF000001 /* HotkeyServiceTests.swift */; };
+		AUTOSAVETESTSBUILD000001 /* AutoSaveControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AUTOSAVETESTSFILEREF0001 /* AutoSaveControllerTests.swift */; };
 		E3F0640E8F0731044C02FF5B /* ModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D4F48781A4F1E6A014ABFA8 /* ModeTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -99,6 +100,7 @@
 		APPSVCCTRLFILEREF0000001 /* AppServiceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppServiceController.swift; sourceTree = "<group>"; };
 		APPDLGTESTSFILEREF000001 /* AppDelegateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegateTests.swift; sourceTree = "<group>"; };
 		HOTKEYTESTSFILEREF000001 /* HotkeyServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyServiceTests.swift; sourceTree = "<group>"; };
+		AUTOSAVETESTSFILEREF0001 /* AutoSaveControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoSaveControllerTests.swift; sourceTree = "<group>"; };
 		CB19AF4AB43A0BD00A354B2D /* DisplayServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayServiceTests.swift; sourceTree = "<group>"; };
 		CC87C8F97FA8F4446E8EB13B /* PersistenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceService.swift; sourceTree = "<group>"; };
 		D580F70BB0C535851B1B1C95 /* DisplayService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayService.swift; sourceTree = "<group>"; };
@@ -247,6 +249,7 @@
 				SNAP1A2B3C4D5E6F7G8H9I0J /* SnappingEngineTests.swift */,
 				APPDLGTESTSFILEREF000001 /* AppDelegateTests.swift */,
 				HOTKEYTESTSFILEREF000001 /* HotkeyServiceTests.swift */,
+				AUTOSAVETESTSFILEREF0001 /* AutoSaveControllerTests.swift */,
 				EC2577A4F7B05D2B722D93C6 /* ZoneTests.swift */,
 			);
 			path = ScreenEstateTests;
@@ -352,6 +355,7 @@
 				SNAP5Y5T3M1F8N2K4B7C9A0E /* SnappingEngineTests.swift in Sources */,
 				APPDLGTESTSBUILD00000001 /* AppDelegateTests.swift in Sources */,
 				HOTKEYTESTSBUILD00000001 /* HotkeyServiceTests.swift in Sources */,
+				AUTOSAVETESTSBUILD000001 /* AutoSaveControllerTests.swift in Sources */,
 				4332ED001C7443C6DED03AD6 /* ZoneTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -11,6 +11,20 @@ class AutoSaveController {
         self.appState = appState
         self.persistence = persistence
         startObserving()
+        // Token intentionally not retained: the controller lives for the app's
+        // lifetime, and the weak capture makes the observer inert if it doesn't.
+        _ = NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            // willTerminateNotification is delivered on the main thread; hop is
+            // for the compiler, MainActor.assumeIsolated keeps it synchronous so
+            // the save completes before the process exits.
+            MainActor.assumeIsolated {
+                self?.flush()
+            }
+        }
     }
 
     private func startObserving() {
@@ -23,6 +37,14 @@ class AutoSaveController {
                 self?.startObserving()
             }
         }
+    }
+
+    /// Saves immediately, cancelling any pending debounced save. Called on app
+    /// termination so edits made within the debounce window aren't lost.
+    func flush() {
+        pendingSave?.cancel()
+        pendingSave = nil
+        performSave()
     }
 
     private func scheduleSave() {
