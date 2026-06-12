@@ -147,6 +147,30 @@ final class PersistenceServiceTests: XCTestCase {
                        "the .bak must hold the pre-rewrite contents")
     }
 
+    // MARK: - Settings Schema Tolerance
+
+    func testSettingsDecodeToleratesMissingFields() throws {
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        // A future (or hand-edited) settings file carrying only one field must
+        // not throw and reset everything — absent fields fall back to defaults.
+        let commandFlags = NSEvent.ModifierFlags.command.rawValue
+        let partial = #"{"modifierKey": \#(commandFlags)}"#
+        try Data(partial.utf8).write(to: tempDir.appendingPathComponent("settings.json"))
+
+        let loaded: AppSettings = try service.load(from: .settings)
+
+        XCTAssertTrue(loaded.modifierKey.command, "present fields must be honored")
+        XCTAssertTrue(loaded.isEnabled, "absent fields must fall back to defaults")
+        XCTAssertEqual(loaded.themeMode, .system)
+    }
+
+    func testSettingsFileCarriesSchemaVersion() throws {
+        try service.save(AppSettings.defaultSettings, to: .settings)
+        let data = try Data(contentsOf: tempDir.appendingPathComponent("settings.json"))
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(json["version"] as? Int, 1)
+    }
+
     // MARK: - JSON is Human-Readable
 
     func testSavedJSONIsPrettyPrinted() throws {

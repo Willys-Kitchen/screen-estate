@@ -147,7 +147,11 @@ struct ScreenEstateApp: App {
 
         // Sync login item state
         if state.settings.launchAtLogin {
-            try? SMAppService.mainApp.register()
+            do {
+                try SMAppService.mainApp.register()
+            } catch {
+                NSLog("Screen Estate: Failed to register login item (setting shows enabled but it isn't): \(error)")
+            }
         }
 
         self._appState = State(initialValue: state)

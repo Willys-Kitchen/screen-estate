@@ -52,13 +52,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         } onChange: { [weak self] in
             Task { @MainActor in
                 guard let self, let appState = self.appState else { return }
+                // Re-arm before acting so a toggle landing while we react is
+                // still observed; start/stop are idempotent either way.
+                self.observeIsEnabled(appState)
                 if appState.isEnabled {
                     self.startServicesIfReady()
                 } else {
                     NSLog("Screen Estate: Disabled by user, stopping services.")
                     self.stopServices()
                 }
-                self.observeIsEnabled(appState)
             }
         }
     }

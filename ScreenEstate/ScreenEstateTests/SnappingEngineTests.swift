@@ -407,6 +407,26 @@ final class SnappingEngineTests: XCTestCase {
                        "must never snap a window belonging to a different app. Log: \(mockWindow.callLog)")
     }
 
+    func testSecondHotkeyDuringFullscreenWaitDoesNotStartASecondExit() {
+        let mockWindow = MockWindowService()
+        mockWindow.focusedWindow = AXUIElementCreateSystemWide()
+        mockWindow.fullscreenResults = [true, true, false]
+
+        let engine = makeFullscreenTestEngine(mockWindow: mockWindow)
+
+        engine.snapFocusedWindowToZone(number: 1)
+        engine.snapFocusedWindowToZone(number: 2) // re-press during the quiet wait
+
+        let done = expectation(description: "quiet wait elapses")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { done.fulfill() }
+        wait(for: [done], timeout: 1.0)
+
+        XCTAssertEqual(mockWindow.callLog.filter { $0 == "exitFullscreen" }.count, 1,
+                       "a snap already in flight must not be restarted. Log: \(mockWindow.callLog)")
+        XCTAssertEqual(mockWindow.callLog.filter { $0 == "setWindowFrame" }.count, 1,
+                       "exactly one snap should land. Log: \(mockWindow.callLog)")
+    }
+
     func testFullscreenVerifyDoesOneCorrectiveMoveWhenNotLanded() {
         // Arrange
         let mockWindow = MockWindowService()

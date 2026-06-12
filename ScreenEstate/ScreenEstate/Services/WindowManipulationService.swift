@@ -69,7 +69,11 @@ class WindowManipulationService: WindowManipulating {
             return nil
         }
 
+        #if DEBUG
         NSLog("Screen Estate [AX]: Trying via NSWorkspace, frontmost app: \(frontApp.localizedName ?? "unknown") (PID \(frontApp.processIdentifier))")
+        #else
+        NSLog("Screen Estate [AX]: Trying via NSWorkspace frontmost app")
+        #endif
 
         let appElement = withTimeout(AXUIElementCreateApplication(frontApp.processIdentifier))
 
@@ -175,7 +179,9 @@ class WindowManipulationService: WindowManipulating {
         let success = applyFrame(window, frame: frame)
 
         if let actual = getWindowFrame(window),
-           hypot(actual.origin.x - frame.origin.x, actual.origin.y - frame.origin.y) > 20 {
+           hypot(actual.origin.x - frame.origin.x, actual.origin.y - frame.origin.y) > 20
+            || abs(actual.width - frame.width) > 20
+            || abs(actual.height - frame.height) > 20 {
             return applyFrame(window, frame: frame)
         }
 
@@ -196,8 +202,11 @@ class WindowManipulationService: WindowManipulating {
             success = false
         }
 
-        // Brief RunLoop spin to let macOS process the position change
-        CFRunLoopRunInMode(.defaultMode, 0.02, false)
+        // Brief pause to let the target app process the position change.
+        // Deliberately a sleep, not a run-loop spin: pumping the run loop here
+        // would let queued hotkey/mouse handlers run mid-apply and mutate
+        // snapping state while a frame is half-set.
+        usleep(20_000)
 
         var size = frame.size
         if let sizeValue = AXValueCreate(.cgSize, &size) {
@@ -258,7 +267,11 @@ class WindowManipulationService: WindowManipulating {
 
         let activated = app.activate()
         if !activated {
+            #if DEBUG
             NSLog("Screen Estate [AX]: Failed to activate app \(app.localizedName ?? "unknown")")
+            #else
+            NSLog("Screen Estate [AX]: Failed to activate owning app")
+            #endif
             return false
         }
         return true

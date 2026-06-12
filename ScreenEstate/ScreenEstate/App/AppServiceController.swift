@@ -19,8 +19,10 @@ final class DefaultAppServiceController: AppServiceController {
     private let appState: AppState
 
     init(appState: AppState, onSnapFailed: @escaping () -> Void) {
-        let engine = SnappingEngine(appState: appState, onSnapFailed: onSnapFailed)
+        // One overlay manager shared by the engine and the hotkey service, so
+        // zone overlays and the mode-name flash know about each other.
         let overlayManager = OverlayManager()
+        let engine = SnappingEngine(appState: appState, overlayManager: overlayManager, onSnapFailed: onSnapFailed)
         self.engine = engine
         self.overlayManager = overlayManager
         self.hotkeys = HotkeyService(appState: appState, snappingEngine: engine, overlayManager: overlayManager)

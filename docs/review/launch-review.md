@@ -58,14 +58,14 @@ Finding status: `open` / `fixed` / `accepted-risk`.
 - What: The post-apply check compares only origin (20 pt tolerance). Windows with min/max size constraints (Terminal grid sizing, some Electron apps) land at the right origin with the wrong size and report success.
 - Why it matters: Silent partial snaps; user thinks the zone "didn't take".
 - Suggested fix: Compare size too; optionally report partial success distinctly (don't trigger the failure alert for a constrained resize).
-- Status: open
+- Status: fixed (retry check now compares size as well as position)
 
 ### F-07 [Minor] Arbitrary 1080 fallback for primary screen height
 - Where: `ScreenEstate/ScreenEstate/Services/SnappingEngine.swift:341`
 - What: `resolveGlobalZone` uses `NSScreen.screens.first?.frame.height ?? 1080`. If the screens list is momentarily empty (display sleep/reconfigure), coordinate conversion produces garbage frames.
 - Why it matters: Window teleports to a nonsense position instead of the snap failing cleanly.
 - Suggested fix: `guard let` the primary screen and abort the snap when absent.
-- Status: open
+- Status: fixed (snap aborts cleanly when no screens are available)
 
 ## Lens 2 — Concurrency & lifecycle
 
@@ -74,34 +74,34 @@ Finding status: `open` / `fixed` / `accepted-risk`.
 - What: `applyFrame` calls `CFRunLoopRunInMode(.defaultMode, 0.02, false)` twice, pumping the main run loop mid-snap. Queued main-actor tasks — hotkey handlers, mouse-up handlers, `cancelTracking` — can execute while `setWindowFrame` is half-applied.
 - Why it matters: A second hotkey press or mouse-up landing inside the spin mutates `SnappingEngine` state mid-operation; symptoms would be rare, unreproducible mis-snaps.
 - Suggested fix: Make the apply path `async` and use `Task.sleep` between position/size writes, or set both attributes without pumping the run loop and rely on the existing delayed verify pass.
-- Status: open
+- Status: fixed (run-loop spin replaced with a plain sleep; no re-entrancy window)
 
 ### F-09 [Major] Hotkey chords are not consumed — frontmost app also receives them
 - Where: `ScreenEstate/ScreenEstate/Services/HotkeyService.swift:32-35`
 - What: `NSEvent.addGlobalMonitorForEvents` observes events but cannot swallow them. The modifier+digit chord is also delivered to the focused app.
 - Why it matters: Default ⌃⌥+digit is mostly safe, but the modifier is user-configurable (`KeyRecorderView`): pick ⌘ and ⌘1 will switch the Safari tab *and* snap the window — every time.
 - Suggested fix: Either consume via a `CGEventTap` (listen+suppress) / Carbon `RegisterEventHotKey`, or restrict the recorder to modifier combos that don't collide with common app shortcuts and document the pass-through.
-- Status: fixed (Carbon RegisterEventHotKey; chords consumed, no Accessibility needed, re-registers on modifier change; covered by HotkeyServiceTests)
+- Status: fixed + verified on hardware (Carbon RegisterEventHotKey; chords consumed — Option+digit no longer leaks composed characters into text fields; covered by HotkeyServiceTests)
 
 ### F-10 [Minor] No in-flight guard on the fullscreen snap sequence
 - Where: `ScreenEstate/ScreenEstate/Services/SnappingEngine.swift:298-322`
 - What: Pressing the hotkey again during the 0.8 s fullscreen-exit wait starts a second exit/curtain/snap sequence; the two interleave.
 - Suggested fix: Track an `isFullscreenSnapInFlight` flag and ignore (or queue) re-entrant requests.
-- Status: open
+- Status: fixed (in-flight guard ignores re-presses; covered by SnappingEngineTests)
 
 ### F-11 [Minor] Observation re-arm gap can miss rapid isEnabled toggles
 - Where: `ScreenEstate/ScreenEstate/App/AppDelegate.swift:49-64`
 - What: `withObservationTracking`'s onChange re-arms inside an async `Task`. A second toggle landing before the re-arm executes is unobserved.
 - Why it matters: Services can end up out of sync with the toggle (e.g. left running while disabled) until the next toggle.
 - Suggested fix: Read the current `isEnabled` and reconcile (idempotent start/stop) rather than acting on the assumption of one change per fire — current code mostly does this; just re-arm *before* acting, or accept-risk.
-- Status: open
+- Status: fixed (observation re-arms before acting; start/stop are idempotent)
 
 ### F-12 [Minor] Two independent OverlayManager instances
 - Where: `ScreenEstate/ScreenEstate/App/AppServiceController.swift:21-25`
 - What: `SnappingEngine` gets its own default `OverlayManager()` while `HotkeyService` is handed a second instance for `flashModeName`. Neither knows what the other is displaying.
 - Why it matters: Mode-name flash and zone overlays can stack/fight; hide calls on one don't affect the other.
 - Suggested fix: Create one `OverlayManager` in the controller and inject it into both.
-- Status: open
+- Status: fixed (single OverlayManager shared by engine and hotkey service)
 
 ## Lens 3 — State & persistence integrity
 
@@ -124,13 +124,13 @@ Finding status: `open` / `fixed` / `accepted-risk`.
 - What: Five fields are hard-required in `init(from:)`; any future rename/removal throws and resets *all* settings. `CustomModifierKey` already needed ad-hoc legacy decoding — evidence this will recur.
 - Why it matters: Post-launch schema evolution becomes risky; a v2 that can't read v1 wipes user prefs.
 - Suggested fix: Add `"version": 1` to both files now (decode-if-present), and make remaining settings fields `decodeIfPresent` with defaults.
-- Status: open
+- Status: fixed (settings decode is per-field with defaults; settings.json carries version: 1; covered by PersistenceServiceTests)
 
 ### F-16 [Minor] Login-item registration failure is swallowed
 - Where: `ScreenEstate/ScreenEstate/App/ScreenEstateApp.swift:124-126`
 - What: `try? SMAppService.mainApp.register()` — if registration fails (e.g. app translocation, unsigned build), the setting shows enabled while the login item doesn't exist.
 - Suggested fix: Log the error and reconcile the toggle with `SMAppService.mainApp.status` when the settings UI opens.
-- Status: open
+- Status: fixed (registration failure logged with the setting-mismatch implication)
 
 ## Lens 4 — Security & privacy posture
 
@@ -148,7 +148,7 @@ Finding status: `open` / `fixed` / `accepted-risk`.
 - What: `NSLog` includes frontmost app name and PID. Window titles/content are never logged (good).
 - Why it matters: Unified log entries reveal which apps the user focuses; low risk but easy to tighten.
 - Suggested fix: Gate behind `#if DEBUG` or drop the app name from the message.
-- Status: open
+- Status: fixed (app names/PIDs only logged in DEBUG builds)
 
 ## Lens 5 — Operational readiness
 
@@ -159,7 +159,7 @@ Finding status: `open` / `fixed` / `accepted-risk`.
 - What: No user-facing version display, no "copy debug info", and logging is unstructured `NSLog` (~50 statements) rather than `os.Logger` with a subsystem.
 - Why it matters: The first launch bug report will be "hotkeys don't work" — almost always the Accessibility/TCC issue. Without a visible trust status + version, every report becomes a back-and-forth.
 - Suggested fix: Add an About/debug menu item showing version, Accessibility trust state, and display layout; optionally migrate to `os.Logger` so `log show --predicate 'subsystem == ...'` works.
-- Status: open
+- Status: fixed (menu bar shows version + Accessibility status and a Copy Debug Info action)
 
 ### F-20 [Minor] No update mechanism — decide before first distribution
 - Where: project-wide (no Sparkle, no update check)
