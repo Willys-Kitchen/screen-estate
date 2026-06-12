@@ -18,6 +18,7 @@ class SnappingEngine {
     private var cachedGlobalZones: [GlobalZoneHelper.GlobalZone]? // Cached during tracking
 
     private var monitors: [Any] = []
+    private var fullscreenSnapInFlight = false
     var onSnapFailed: (() -> Void)?
 
     private let fullscreenQuietWait: TimeInterval
@@ -276,6 +277,13 @@ class SnappingEngine {
         }
     }
 
+    /// Displays were added/removed/rearranged: any in-flight drag tracking and
+    /// visible overlays are based on stale geometry, so drop them. The next
+    /// drag recomputes from the new configuration.
+    func displayConfigurationChanged() {
+        cancelTracking()
+    }
+
     func showKeyboardSnapOverlay() {
         showOverlaysForCurrentMode()
     }
@@ -296,10 +304,19 @@ class SnappingEngine {
 
         // Check if window is fullscreen — if so, exit fullscreen first and snap after animation
         if windowService.isFullscreen(window) {
+            guard !fullscreenSnapInFlight else {
+                NSLog("Screen Estate: Fullscreen snap already in flight, ignoring re-press")
+                return
+            }
             #if DEBUG
             NSLog("Screen Estate: Window is fullscreen, exiting before snap")
             #endif
+            // Capture the owning app before exiting: focus can legitimately
+            // move during the quiet wait, and we must never snap a different
+            // app's window.
+            let originalPID = windowService.owningPID(window)
             if windowService.exitFullscreen(window) {
+                fullscreenSnapInFlight = true
                 if let resolved = resolveGlobalZone(number) {
                     overlayManager.showCurtain(message: curtainMessage, on: resolved.display, accentColor: accentColor)
                 }
@@ -308,6 +325,13 @@ class SnappingEngine {
                     guard let freshWindow = self.windowService.getFocusedWindow() else {
                         NSLog("Screen Estate: Lost window reference after fullscreen exit")
                         self.overlayManager.fadeOutCurtain(duration: 0.2)
+                        self.fullscreenSnapInFlight = false
+                        return
+                    }
+                    guard self.windowService.owningPID(freshWindow) == originalPID else {
+                        NSLog("Screen Estate: Focus moved to another app during fullscreen exit, aborting snap")
+                        self.overlayManager.fadeOutCurtain(duration: 0.2)
+                        self.fullscreenSnapInFlight = false
                         return
                     }
                     self.performFullscreenSnap(window: freshWindow, toZoneNumber: number)
@@ -338,7 +362,12 @@ class SnappingEngine {
     private func resolveGlobalZone(_ number: Int) -> ResolvedZone? {
         guard let mode = appState.activeMode else { return nil }
         let displays = displayService.connectedDisplays()
-        let primaryHeight = NSScreen.screens.first?.frame.height ?? 1080
+        guard let primaryHeight = NSScreen.screens.first?.frame.height else {
+            // Mid-reconfigure (display sleep/unplug) there may briefly be no
+            // screens; failing the snap beats converting with a made-up height.
+            NSLog("Screen Estate: No screens available, cannot resolve zone")
+            return nil
+        }
         guard let result = GlobalZoneHelper.findZoneByGlobalNumber(number, displays: displays, mode: mode) else {
             return nil
         }
@@ -382,6 +411,7 @@ class SnappingEngine {
         guard let resolved = resolveGlobalZone(number) else {
             NSLog("Screen Estate: No global zone with number \(number)")
             overlayManager.fadeOutCurtain(duration: 0.2)
+            fullscreenSnapInFlight = false
             return
         }
         let axFrame = resolved.axFrame
@@ -398,6 +428,7 @@ class SnappingEngine {
             guard let self else { return }
             self.verifyLandingOnce(window: window, frame: axFrame)
             self.overlayManager.fadeOutCurtain(duration: self.curtainFadeDuration)
+            self.fullscreenSnapInFlight = false
         }
     }
 

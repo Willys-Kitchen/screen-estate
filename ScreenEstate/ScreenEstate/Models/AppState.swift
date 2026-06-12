@@ -4,6 +4,13 @@ import SwiftUI
 
 @Observable
 class AppState {
+    /// The live app state, published by `ScreenEstateApp.init()` so the
+    /// `AppDelegate` can adopt it at launch without reaching into the
+    /// `@NSApplicationDelegateAdaptor` from `App.init()` (which is unreliable —
+    /// the instance touched there isn't guaranteed to be the registered
+    /// delegate that receives `applicationDidFinishLaunching`).
+    @ObservationIgnored @MainActor static var shared: AppState?
+
     var modes: [Mode] = []
     var activeModeIndex: Int = 0
     var settings: AppSettings = .defaultSettings

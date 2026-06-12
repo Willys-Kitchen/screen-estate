@@ -48,6 +48,12 @@
 		D24F1C60C0A5CAC7AD1A81D4 /* CoordinateConverter.swift in Sources */ = {isa = PBXBuildFile; fileRef = A836B63A1DB9C1A9BF27061D /* CoordinateConverter.swift */; };
 		D2BBC118C3C0933A0C91B1BB /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E5569E72D18DE674671A505 /* AppState.swift */; };
 		E0AC3F32CCB7F662D0419898 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9502E8B1C6CBA109DC74BB8 /* AppDelegate.swift */; };
+		APPSVCCTRLBUILD000000001 /* AppServiceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPSVCCTRLFILEREF0000001 /* AppServiceController.swift */; };
+		APPDLGTESTSBUILD00000001 /* AppDelegateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPDLGTESTSFILEREF000001 /* AppDelegateTests.swift */; };
+		HOTKEYTESTSBUILD00000001 /* HotkeyServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = HOTKEYTESTSFILEREF000001 /* HotkeyServiceTests.swift */; };
+		AUTOSAVETESTSBUILD000001 /* AutoSaveControllerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AUTOSAVETESTSFILEREF0001 /* AutoSaveControllerTests.swift */; };
+		RECONCILERBUILD000000001 /* DisplayLayoutReconciler.swift in Sources */ = {isa = PBXBuildFile; fileRef = RECONCILERFILEREF0000001 /* DisplayLayoutReconciler.swift */; };
+		RECONCILERTESTSBUILD0001 /* DisplayLayoutReconcilerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = RECONCILERTESTSFILEREF01 /* DisplayLayoutReconcilerTests.swift */; };
 		E3F0640E8F0731044C02FF5B /* ModeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D4F48781A4F1E6A014ABFA8 /* ModeTests.swift */; };
 /* End PBXBuildFile section */
 
@@ -93,6 +99,12 @@
 		C0CDD33B664528DD2DA994D3 /* OverlayContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayContentView.swift; sourceTree = "<group>"; };
 		C1554744C25086E04077E8E8 /* ScreenEstate.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ScreenEstate.entitlements; sourceTree = "<group>"; };
 		C9502E8B1C6CBA109DC74BB8 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		APPSVCCTRLFILEREF0000001 /* AppServiceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppServiceController.swift; sourceTree = "<group>"; };
+		APPDLGTESTSFILEREF000001 /* AppDelegateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegateTests.swift; sourceTree = "<group>"; };
+		HOTKEYTESTSFILEREF000001 /* HotkeyServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyServiceTests.swift; sourceTree = "<group>"; };
+		AUTOSAVETESTSFILEREF0001 /* AutoSaveControllerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoSaveControllerTests.swift; sourceTree = "<group>"; };
+		RECONCILERFILEREF0000001 /* DisplayLayoutReconciler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayLayoutReconciler.swift; sourceTree = "<group>"; };
+		RECONCILERTESTSFILEREF01 /* DisplayLayoutReconcilerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayLayoutReconcilerTests.swift; sourceTree = "<group>"; };
 		CB19AF4AB43A0BD00A354B2D /* DisplayServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayServiceTests.swift; sourceTree = "<group>"; };
 		CC87C8F97FA8F4446E8EB13B /* PersistenceService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceService.swift; sourceTree = "<group>"; };
 		D580F70BB0C535851B1B1C95 /* DisplayService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DisplayService.swift; sourceTree = "<group>"; };
@@ -144,6 +156,7 @@
 			children = (
 				A836B63A1DB9C1A9BF27061D /* CoordinateConverter.swift */,
 				0D41DBE84C1C4A83A9F4C5E8 /* GlobalZoneHelper.swift */,
+				RECONCILERFILEREF0000001 /* DisplayLayoutReconciler.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -183,6 +196,7 @@
 			isa = PBXGroup;
 			children = (
 				C9502E8B1C6CBA109DC74BB8 /* AppDelegate.swift */,
+				APPSVCCTRLFILEREF0000001 /* AppServiceController.swift */,
 				7BADDA66F638F4569A5C67BA /* ScreenEstateApp.swift */,
 			);
 			path = App;
@@ -238,6 +252,10 @@
 				4AAB013F605B9B4E3A3B605E /* PersistenceServiceTests.swift */,
 				34AC41CE6802ED0EBBD0EC70 /* ScreenEstateTests.swift */,
 				SNAP1A2B3C4D5E6F7G8H9I0J /* SnappingEngineTests.swift */,
+				APPDLGTESTSFILEREF000001 /* AppDelegateTests.swift */,
+				HOTKEYTESTSFILEREF000001 /* HotkeyServiceTests.swift */,
+				AUTOSAVETESTSFILEREF0001 /* AutoSaveControllerTests.swift */,
+				RECONCILERTESTSFILEREF01 /* DisplayLayoutReconcilerTests.swift */,
 				EC2577A4F7B05D2B722D93C6 /* ZoneTests.swift */,
 			);
 			path = ScreenEstateTests;
@@ -341,6 +359,10 @@
 				020EF6D827F2BEFC1B4DCAB3 /* PersistenceServiceTests.swift in Sources */,
 				2CA9D86181EBB86F5C43C909 /* ScreenEstateTests.swift in Sources */,
 				SNAP5Y5T3M1F8N2K4B7C9A0E /* SnappingEngineTests.swift in Sources */,
+				APPDLGTESTSBUILD00000001 /* AppDelegateTests.swift in Sources */,
+				HOTKEYTESTSBUILD00000001 /* HotkeyServiceTests.swift in Sources */,
+				AUTOSAVETESTSBUILD000001 /* AutoSaveControllerTests.swift in Sources */,
+				RECONCILERTESTSBUILD0001 /* DisplayLayoutReconcilerTests.swift in Sources */,
 				4332ED001C7443C6DED03AD6 /* ZoneTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -350,6 +372,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				E0AC3F32CCB7F662D0419898 /* AppDelegate.swift in Sources */,
+				APPSVCCTRLBUILD000000001 /* AppServiceController.swift in Sources */,
 				1C878CF25C0B0B29A7794AE6 /* AppSettings.swift in Sources */,
 				D2BBC118C3C0933A0C91B1BB /* AppState.swift in Sources */,
 				D24F1C60C0A5CAC7AD1A81D4 /* CoordinateConverter.swift in Sources */,
@@ -357,6 +380,7 @@
 				4492EB0E4A7EF9D268E96546 /* DisplayService.swift in Sources */,
 				B00EB6C335E31F28A7235687 /* EditorWindow.swift in Sources */,
 				1639A31397F84DC69A49986F /* GlobalZoneHelper.swift in Sources */,
+				RECONCILERBUILD000000001 /* DisplayLayoutReconciler.swift in Sources */,
 				4E383FA1282A858E7A13928F /* GridCell.swift in Sources */,
 				A4C4446C226702532BE27B71 /* GridEditor.swift in Sources */,
 				0BF651063BA136279EE8850B /* GridTab.swift in Sources */,
@@ -500,6 +524,7 @@
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = ScreenEstate/Info.plist;
 				INFOPLIST_KEY_LSUIElement = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -521,6 +546,7 @@
 				CODE_SIGN_STYLE = Manual;
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_APP_SANDBOX = NO;
+				ENABLE_HARDENED_RUNTIME = YES;
 				INFOPLIST_FILE = ScreenEstate/Info.plist;
 				INFOPLIST_KEY_LSUIElement = YES;
 				LD_RUNPATH_SEARCH_PATHS = (

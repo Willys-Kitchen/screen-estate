@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import Carbon.HIToolbox
 
 struct RGBA: Codable, Hashable {
     var red: Double
@@ -44,6 +45,16 @@ struct CustomModifierKey: Codable, Hashable {
     var option:  Bool { eventFlags.contains(.option) }
     var shift:   Bool { eventFlags.contains(.shift) }
     var command: Bool { eventFlags.contains(.command) }
+
+    /// The same modifiers expressed as Carbon hotkey flags, for RegisterEventHotKey.
+    var carbonFlags: UInt32 {
+        var flags: UInt32 = 0
+        if control { flags |= UInt32(controlKey) }
+        if option  { flags |= UInt32(optionKey) }
+        if shift   { flags |= UInt32(shiftKey) }
+        if command { flags |= UInt32(cmdKey) }
+        return flags
+    }
 
     var displayString: String {
         var parts: [String] = []
@@ -96,16 +107,39 @@ struct AppSettings: Codable, Equatable {
         hasSeenOnboarding: false
     )
 
-    // Custom decoding to handle missing fields in existing configs
+    /// Bumped when the settings schema changes in a way decode-with-defaults
+    /// can't absorb. Written into the file so a future version can branch.
+    static let schemaVersion = 1
+
+    private enum CodingKeys: String, CodingKey {
+        case version, accentColorRGBA, modifierKey, launchAtLogin,
+             isEnabled, isDragSnapEnabled, themeMode, hasSeenOnboarding
+    }
+
+    // Every field is optional on decode: a missing or unrecognised field falls
+    // back to its default instead of throwing and resetting ALL settings.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        accentColorRGBA = try container.decode(RGBA.self, forKey: .accentColorRGBA)
-        modifierKey = try container.decode(CustomModifierKey.self, forKey: .modifierKey)
-        launchAtLogin = try container.decode(Bool.self, forKey: .launchAtLogin)
-        isEnabled = try container.decode(Bool.self, forKey: .isEnabled)
-        isDragSnapEnabled = try container.decode(Bool.self, forKey: .isDragSnapEnabled)
-        themeMode = try container.decodeIfPresent(ThemeMode.self, forKey: .themeMode) ?? .system
-        hasSeenOnboarding = try container.decodeIfPresent(Bool.self, forKey: .hasSeenOnboarding) ?? false
+        let defaults = AppSettings.defaultSettings
+        accentColorRGBA = (try? container.decodeIfPresent(RGBA.self, forKey: .accentColorRGBA)) ?? defaults.accentColorRGBA
+        modifierKey = (try? container.decodeIfPresent(CustomModifierKey.self, forKey: .modifierKey)) ?? defaults.modifierKey
+        launchAtLogin = (try? container.decodeIfPresent(Bool.self, forKey: .launchAtLogin)) ?? defaults.launchAtLogin
+        isEnabled = (try? container.decodeIfPresent(Bool.self, forKey: .isEnabled)) ?? defaults.isEnabled
+        isDragSnapEnabled = (try? container.decodeIfPresent(Bool.self, forKey: .isDragSnapEnabled)) ?? defaults.isDragSnapEnabled
+        themeMode = (try? container.decodeIfPresent(ThemeMode.self, forKey: .themeMode)) ?? defaults.themeMode
+        hasSeenOnboarding = (try? container.decodeIfPresent(Bool.self, forKey: .hasSeenOnboarding)) ?? defaults.hasSeenOnboarding
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(Self.schemaVersion, forKey: .version)
+        try container.encode(accentColorRGBA, forKey: .accentColorRGBA)
+        try container.encode(modifierKey, forKey: .modifierKey)
+        try container.encode(launchAtLogin, forKey: .launchAtLogin)
+        try container.encode(isEnabled, forKey: .isEnabled)
+        try container.encode(isDragSnapEnabled, forKey: .isDragSnapEnabled)
+        try container.encode(themeMode, forKey: .themeMode)
+        try container.encode(hasSeenOnboarding, forKey: .hasSeenOnboarding)
     }
 
     init(accentColorRGBA: RGBA, modifierKey: CustomModifierKey, launchAtLogin: Bool, isEnabled: Bool, isDragSnapEnabled: Bool, themeMode: ThemeMode = .system, hasSeenOnboarding: Bool = false) {

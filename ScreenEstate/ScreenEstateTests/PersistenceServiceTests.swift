@@ -87,6 +87,90 @@ final class PersistenceServiceTests: XCTestCase {
         XCTAssertEqual(loaded[0].name, "Second")
     }
 
+    // MARK: - Corrupt File Recovery
+
+    func testCorruptModesFileIsBackedUpBeforeReset() throws {
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        let corruptData = Data("{this is not valid json".utf8)
+        try corruptData.write(to: tempDir.appendingPathComponent("modes.json"))
+
+        let defaults = [Mode(id: UUID(), name: "Default", layouts: [])]
+        let modes = service.loadModesOrReset(makeDefaults: { defaults })
+
+        XCTAssertEqual(modes.map(\.name), ["Default"], "unreadable file must fall back to defaults")
+
+        let backups = try FileManager.default.contentsOfDirectory(atPath: tempDir.path)
+            .filter { $0.hasPrefix("modes.json.corrupt") }
+        XCTAssertEqual(backups.count, 1, "the unreadable file must be preserved, not overwritten")
+        let backupData = try Data(contentsOf: tempDir.appendingPathComponent(backups[0]))
+        XCTAssertEqual(backupData, corruptData, "backup must contain the original bytes")
+
+        let reloaded: [Mode] = try service.load(from: .modes)
+        XCTAssertEqual(reloaded.map(\.name), ["Default"], "defaults must be written as the new modes file")
+    }
+
+    func testValidModesFileLoadsWithoutResetOrBackup() throws {
+        let saved = [Mode(id: UUID(), name: "Mine", layouts: [])]
+        try service.save(saved, to: .modes)
+
+        let modes = service.loadModesOrReset(makeDefaults: { XCTFail("defaults must not be built"); return [] })
+
+        XCTAssertEqual(modes.map(\.name), ["Mine"])
+        let backups = try FileManager.default.contentsOfDirectory(atPath: tempDir.path)
+            .filter { $0.hasPrefix("modes.json.corrupt") }
+        XCTAssertTrue(backups.isEmpty)
+    }
+
+    func testMissingModesFileResetsToDefaultsWithoutBackup() throws {
+        let defaults = [Mode(id: UUID(), name: "Default", layouts: [])]
+        let modes = service.loadModesOrReset(makeDefaults: { defaults })
+
+        XCTAssertEqual(modes.map(\.name), ["Default"])
+        let backups = try FileManager.default.contentsOfDirectory(atPath: tempDir.path)
+            .filter { $0.hasPrefix("modes.json.corrupt") }
+        XCTAssertTrue(backups.isEmpty, "no backup should be created when there was no file")
+        let reloaded: [Mode] = try service.load(from: .modes)
+        XCTAssertEqual(reloaded.map(\.name), ["Default"], "defaults must be persisted")
+    }
+
+    func testKeepSafetyCopyPreservesCurrentFileAsBak() throws {
+        let original = [Mode(id: UUID(), name: "Original", layouts: [])]
+        try service.save(original, to: .modes)
+
+        service.keepSafetyCopy(of: .modes)
+        try service.save([Mode(id: UUID(), name: "Rewritten", layouts: [])], to: .modes)
+
+        let bakURL = tempDir.appendingPathComponent("modes.json.bak")
+        let bakData = try Data(contentsOf: bakURL)
+        let restored = try JSONDecoder().decode([Mode].self, from: bakData)
+        XCTAssertEqual(restored.map(\.name), ["Original"],
+                       "the .bak must hold the pre-rewrite contents")
+    }
+
+    // MARK: - Settings Schema Tolerance
+
+    func testSettingsDecodeToleratesMissingFields() throws {
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        // A future (or hand-edited) settings file carrying only one field must
+        // not throw and reset everything — absent fields fall back to defaults.
+        let commandFlags = NSEvent.ModifierFlags.command.rawValue
+        let partial = #"{"modifierKey": \#(commandFlags)}"#
+        try Data(partial.utf8).write(to: tempDir.appendingPathComponent("settings.json"))
+
+        let loaded: AppSettings = try service.load(from: .settings)
+
+        XCTAssertTrue(loaded.modifierKey.command, "present fields must be honored")
+        XCTAssertTrue(loaded.isEnabled, "absent fields must fall back to defaults")
+        XCTAssertEqual(loaded.themeMode, .system)
+    }
+
+    func testSettingsFileCarriesSchemaVersion() throws {
+        try service.save(AppSettings.defaultSettings, to: .settings)
+        let data = try Data(contentsOf: tempDir.appendingPathComponent("settings.json"))
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(json["version"] as? Int, 1)
+    }
+
     // MARK: - JSON is Human-Readable
 
     func testSavedJSONIsPrettyPrinted() throws {

@@ -8,6 +8,7 @@ protocol WindowManipulating {
     func getWindowFrame(_ window: AXUIElement) -> CGRect?
     func isFullscreen(_ window: AXUIElement) -> Bool
     func exitFullscreen(_ window: AXUIElement) -> Bool
+    func owningPID(_ window: AXUIElement) -> pid_t?
     @discardableResult func setWindowFrame(_ window: AXUIElement, frame: CGRect) -> Bool
     @discardableResult func raiseWindow(_ window: AXUIElement) -> Bool
     @discardableResult func activateOwningApp(_ window: AXUIElement) -> Bool
@@ -23,10 +24,19 @@ class WindowManipulationService: WindowManipulating {
         return AXIsProcessTrustedWithOptions(options)
     }
 
+    /// Cap for synchronous AX calls so a hung target app can't beachball us
+    /// for the default (multi-second) timeout.
+    private static let axMessagingTimeout: Float = 0.5
+
+    private func withTimeout(_ element: AXUIElement) -> AXUIElement {
+        AXUIElementSetMessagingTimeout(element, Self.axMessagingTimeout)
+        return element
+    }
+
     /// Get the focused window of the frontmost app.
     func getFocusedWindow() -> AXUIElement? {
         // First try: AXUIElement system-wide approach
-        let systemWide = AXUIElementCreateSystemWide()
+        let systemWide = withTimeout(AXUIElementCreateSystemWide())
 
         var focusedApp: AnyObject?
         let appResult = AXUIElementCopyAttributeValue(systemWide, kAXFocusedApplicationAttribute as CFString, &focusedApp)
@@ -59,9 +69,13 @@ class WindowManipulationService: WindowManipulating {
             return nil
         }
 
+        #if DEBUG
         NSLog("Screen Estate [AX]: Trying via NSWorkspace, frontmost app: \(frontApp.localizedName ?? "unknown") (PID \(frontApp.processIdentifier))")
+        #else
+        NSLog("Screen Estate [AX]: Trying via NSWorkspace frontmost app")
+        #endif
 
-        let appElement = AXUIElementCreateApplication(frontApp.processIdentifier)
+        let appElement = withTimeout(AXUIElementCreateApplication(frontApp.processIdentifier))
 
         var focusedWindow: AnyObject?
         let result = AXUIElementCopyAttributeValue(appElement, kAXFocusedWindowAttribute as CFString, &focusedWindow)
@@ -165,7 +179,9 @@ class WindowManipulationService: WindowManipulating {
         let success = applyFrame(window, frame: frame)
 
         if let actual = getWindowFrame(window),
-           hypot(actual.origin.x - frame.origin.x, actual.origin.y - frame.origin.y) > 20 {
+           hypot(actual.origin.x - frame.origin.x, actual.origin.y - frame.origin.y) > 20
+            || abs(actual.width - frame.width) > 20
+            || abs(actual.height - frame.height) > 20 {
             return applyFrame(window, frame: frame)
         }
 
@@ -186,8 +202,11 @@ class WindowManipulationService: WindowManipulating {
             success = false
         }
 
-        // Brief RunLoop spin to let macOS process the position change
-        CFRunLoopRunInMode(.defaultMode, 0.02, false)
+        // Brief pause to let the target app process the position change.
+        // Deliberately a sleep, not a run-loop spin: pumping the run loop here
+        // would let queued hotkey/mouse handlers run mid-apply and mutate
+        // snapping state while a frame is half-set.
+        usleep(20_000)
 
         var size = frame.size
         if let sizeValue = AXValueCreate(.cgSize, &size) {
@@ -225,15 +244,21 @@ class WindowManipulationService: WindowManipulating {
         return true
     }
 
-    /// Activate the app that owns this window, giving it keyboard focus.
-    @discardableResult
-    func activateOwningApp(_ window: AXUIElement) -> Bool {
+    /// The process ID of the app that owns this window.
+    func owningPID(_ window: AXUIElement) -> pid_t? {
         var pid: pid_t = 0
         let pidResult = AXUIElementGetPid(window, &pid)
         if pidResult != .success {
             NSLog("Screen Estate [AX]: Failed to get PID from window: \(describeAXError(pidResult))")
-            return false
+            return nil
         }
+        return pid
+    }
+
+    /// Activate the app that owns this window, giving it keyboard focus.
+    @discardableResult
+    func activateOwningApp(_ window: AXUIElement) -> Bool {
+        guard let pid = owningPID(window) else { return false }
 
         guard let app = NSRunningApplication(processIdentifier: pid) else {
             NSLog("Screen Estate [AX]: No running application for PID \(pid)")
@@ -242,7 +267,11 @@ class WindowManipulationService: WindowManipulating {
 
         let activated = app.activate()
         if !activated {
+            #if DEBUG
             NSLog("Screen Estate [AX]: Failed to activate app \(app.localizedName ?? "unknown")")
+            #else
+            NSLog("Screen Estate [AX]: Failed to activate owning app")
+            #endif
             return false
         }
         return true

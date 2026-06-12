@@ -46,9 +46,43 @@ struct MenuBarView: View {
 
         Divider()
 
-        Button("Quit") {
-            NSApplication.shared.terminate(nil)
+        Group {
+            Button("Copy Debug Info") {
+                copyDebugInfo()
+            }
+            Text("Screen Estate v\(appVersion)\(WindowManipulationService.checkAccessibility() ? "" : " — Accessibility not granted")")
+                .font(.caption)
+                .foregroundColor(.secondary)
+
+            Divider()
+
+            Button("Quit") {
+                NSApplication.shared.terminate(nil)
+            }
+            .keyboardShortcut("q")
         }
-        .keyboardShortcut("q")
+    }
+
+    private var appVersion: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "?"
+    }
+
+    /// Everything support needs for a "hotkeys don't work" report, one click.
+    private func copyDebugInfo() {
+        let displays = NSScreen.screens
+            .map { "\($0.localizedName): frame \($0.frame), visible \($0.visibleFrame)" }
+            .joined(separator: "\n  ")
+        let info = """
+        Screen Estate \(appVersion)
+        macOS \(ProcessInfo.processInfo.operatingSystemVersionString)
+        Accessibility granted: \(WindowManipulationService.checkAccessibility())
+        Enabled: \(appState.settings.isEnabled), drag snap: \(appState.settings.isDragSnapEnabled)
+        Modifier: \(appState.settings.modifierKey.displayString)
+        Active mode: \(appState.activeMode?.name ?? "none") of \(appState.modes.count) mode(s)
+        Displays:
+          \(displays)
+        """
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(info, forType: .string)
     }
 }

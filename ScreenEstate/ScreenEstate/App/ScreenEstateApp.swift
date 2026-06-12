@@ -11,6 +11,20 @@ class AutoSaveController {
         self.appState = appState
         self.persistence = persistence
         startObserving()
+        // Token intentionally not retained: the controller lives for the app's
+        // lifetime, and the weak capture makes the observer inert if it doesn't.
+        _ = NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            // willTerminateNotification is delivered on the main thread; hop is
+            // for the compiler, MainActor.assumeIsolated keeps it synchronous so
+            // the save completes before the process exits.
+            MainActor.assumeIsolated {
+                self?.flush()
+            }
+        }
     }
 
     private func startObserving() {
@@ -23,6 +37,14 @@ class AutoSaveController {
                 self?.startObserving()
             }
         }
+    }
+
+    /// Saves immediately, cancelling any pending debounced save. Called on app
+    /// termination so edits made within the debounce window aren't lost.
+    func flush() {
+        pendingSave?.cancel()
+        pendingSave = nil
+        performSave()
     }
 
     private func scheduleSave() {
@@ -86,15 +108,7 @@ struct ScreenEstateApp: App {
         let persistence = PersistenceService()
         let displayService = DisplayService()
 
-        do {
-            let modes: [Mode] = try persistence.load(from: .modes)
-            if !modes.isEmpty {
-                state.modes = modes
-            } else {
-                throw NSError(domain: "ScreenEstate", code: 0, userInfo: [NSLocalizedDescriptionKey: "Empty modes file"])
-            }
-        } catch {
-            NSLog("Screen Estate: Failed to load modes, using defaults: \(error)")
+        let loadedModes = persistence.loadModesOrReset {
             let displays = displayService.connectedDisplays()
             let layouts = displays.map { display in
                 MonitorLayout(
@@ -104,14 +118,25 @@ struct ScreenEstateApp: App {
                     zones: MonitorLayout.presetsHalves()
                 )
             }
-            let defaultMode = Mode(id: UUID(), name: "Default", layouts: layouts)
-            state.modes = [defaultMode]
+            return [Mode(id: UUID(), name: "Default", layouts: layouts)]
+        }
+
+        // Monitors can come back under a different serial (dock/EDID quirk),
+        // orphaning their saved layouts. Re-key them to the current displays;
+        // keep a safety copy before persisting any automated rewrite.
+        let reconciledModes = DisplayLayoutReconciler.reconcile(
+            modes: loadedModes,
+            displays: displayService.connectedDisplays()
+        )
+        if reconciledModes != loadedModes {
+            persistence.keepSafetyCopy(of: .modes)
             do {
-                try persistence.save(state.modes, to: .modes)
+                try persistence.save(reconciledModes, to: .modes)
             } catch {
-                NSLog("Screen Estate: Failed to save default modes: \(error)")
+                NSLog("Screen Estate: Failed to save reconciled modes: \(error)")
             }
         }
+        state.modes = reconciledModes
 
         do {
             let settings: AppSettings = try persistence.load(from: .settings)
@@ -122,13 +147,28 @@ struct ScreenEstateApp: App {
 
         // Sync login item state
         if state.settings.launchAtLogin {
-            try? SMAppService.mainApp.register()
+            do {
+                try SMAppService.mainApp.register()
+            } catch {
+                NSLog("Screen Estate: Failed to register login item (setting shows enabled but it isn't): \(error)")
+            }
         }
 
         self._appState = State(initialValue: state)
         self.persistence = persistence
         self.displayService = displayService
         self.autoSaveController = AutoSaveController(appState: state, persistence: persistence)
+
+        // Publish the configured state so the delegate can adopt it at launch
+        // (in applicationDidFinishLaunching) and start services even when the
+        // app is launched in the background and the menu is never opened.
+        //
+        // We deliberately do NOT call `appDelegate.setAppState(state)` here:
+        // reaching into the @NSApplicationDelegateAdaptor from App.init() is
+        // unreliable — the instance touched here isn't guaranteed to be the
+        // delegate that AppKit registers and sends applicationDidFinishLaunching
+        // to, which previously left services (and thus hotkeys) never started.
+        AppState.shared = state
     }
 
     private func openEditor() {
